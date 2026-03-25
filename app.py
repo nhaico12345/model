@@ -103,7 +103,7 @@ def load_weather_scaler():
     # CHUYỂN LỆNH IMPORT VÀO ĐÂY ĐỂ TRÁNH LỖI ATEXIT CỦA JOBLIB
     from sklearn.preprocessing import MinMaxScaler
     
-    train_path = r"d:\tranining model AI\manymodel\weather_train.csv"
+    train_path = "weather_train.csv"
     if not os.path.exists(train_path):
         return None
     df_train = pd.read_csv(train_path)
@@ -115,7 +115,7 @@ def load_weather_scaler():
 
 @st.cache_resource
 def load_weather_model():
-    model_path = r"d:\tranining model AI\manymodel\best_ai_model.pth"
+    model_path = "best_ai_model.pth"
     if not os.path.exists(model_path):
         return None, None
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -155,7 +155,7 @@ def load_finance_model(model_path):
 def run_weather_app():
     col1, col2 = st.columns([1, 4])
     with col1:
-        logo_path = r"d:\tranining model AI\manymodel\LogoHTU.png"
+        logo_path = "LogoHTU.png"
         if os.path.exists(logo_path):
             st.image(logo_path, width=150)
     with col2:
@@ -168,7 +168,7 @@ def run_weather_app():
     model_data = load_weather_model()
     
     if scaler is None:
-        st.error("❌ Không tìm thấy bộ dữ liệu huấn luyện gốc tại d:\\tranining model AI\\manymodel\\weather_train.csv để thiết lập Scaler.")
+        st.error("❌ Không tìm thấy bộ dữ liệu huấn luyện gốc tại để thiết lập Scaler.")
         st.stop()
     if model_data[0] is None:
         st.error("❌ Không tìm thấy trọng số model thời tiết.")
@@ -179,7 +179,7 @@ def run_weather_app():
     forecast_hours = st.sidebar.slider("Dự báo bao nhiêu giờ tiếp theo?", min_value=1, max_value=48, value=24)
     
     st.markdown("### 📥 1. Tải lên dữ liệu thời tiết 24-48 giờ qua của Hà Tĩnh")
-    st.info("💡 Bạn có thể chạy file `download_test_data.py` để tự động tải file `hatinh_weather_test.csv` mới nhất.")
+    st.info("💡 Thêm file `hatinh_weather_test.csv` mới nhất để mô hình dự đoán")
     
     uploaded_file = st.file_uploader("Chọn file định dạng CSV hoặc Excel", type=["csv", "xlsx"], key="weather_uploader")
     

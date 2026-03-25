@@ -1,0 +1,48 @@
+import yfinance as yf
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+import os
+
+def download_and_clean_finance_data(ticker, filename):
+    print(f"⏳ Đang tải dữ liệu {ticker} từ Yahoo Finance...")
+    # Tải dữ liệu 1 năm gần nhất (đảm bảo đủ sequence length cho L-GRU)
+    df = yf.download(ticker, period="1y", interval="1d")
+    
+    if df.empty:
+        print(f"❌ Không tìm thấy dữ liệu cho {ticker}")
+        return
+        
+    df.reset_index(inplace=True)
+    
+    # Fix lỗi multi-index của yfinance bản mới
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [c[0] for c in df.columns]
+        
+    # Làm sạch: Chỉ giữ lại ngày và giá đóng cửa
+    if 'Date' not in df.columns:
+        df.rename(columns={'index': 'Date'}, inplace=True)
+        
+    df = df[['Date', 'Close']].dropna()
+    
+    # Format lại ngày giống cấu trúc file Ready_Data.csv
+    df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
+    
+    # Chuẩn hóa dữ liệu (Scaler) giống cấu trúc huấn luyện
+    scaler = MinMaxScaler()
+    df['Scaled_Close'] = scaler.fit_transform(df[['Close']])
+    
+    # Tạo thư mục test_data và xuất file CSV
+    os.makedirs("test_data", exist_ok=True)
+    filepath = os.path.join("test_data", filename)
+    df.to_csv(filepath, index=False)
+    
+    print(f"✅ Đã làm sạch và lưu: {filepath}")
+    print(df.tail(3))
+    print("-" * 50)
+
+if __name__ == "__main__":
+    print("🚀 BẮT ĐẦU LẤY VÀ LÀM SẠCH DỮ LIỆU TEST TÀI CHÍNH")
+    # Tải dữ liệu cho 3 model tương ứng
+    download_and_clean_finance_data("BTC-USD", "Bitcoin_Test_Data.csv")
+    download_and_clean_finance_data("^GSPC", "SP500_Test_Data.csv")
+    download_and_clean_finance_data("TSLA", "Tesla_Test_Data.csv")

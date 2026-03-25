@@ -103,7 +103,7 @@ def load_weather_scaler():
     # CHUYỂN LỆNH IMPORT VÀO ĐÂY ĐỂ TRÁNH LỖI ATEXIT CỦA JOBLIB
     from sklearn.preprocessing import MinMaxScaler
     
-    train_path = "weather_train.csv"
+    train_path = r"weather_train.csv"
     if not os.path.exists(train_path):
         return None
     df_train = pd.read_csv(train_path)
@@ -354,8 +354,10 @@ def run_finance_app():
                 ))
                 
                 # Thêm vạch kẻ dọc ngăn cách Hiện tại và Tương lai
+                # SỬA LỖI Ở ĐÂY: Chuyển Timestamp sang mili-giây để tránh lỗi TypeError của Plotly
                 fig.add_vline(
-                    x=last_date, line_width=2, line_dash="dash", line_color="gray",
+                    x=last_date.timestamp() * 1000, 
+                    line_width=2, line_dash="dash", line_color="gray",
                     annotation_text="← Thực tế | Dự báo →", annotation_position="top"
                 )
                 

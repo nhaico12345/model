@@ -294,7 +294,7 @@ def run_finance_app():
         scaler = load_finance_scaler(df)
 
         if st.button("🚀 BẮT ĐẦU DỰ BÁO", width='stretch', type="primary", key="btn_finance"):
-            with st.spinner("AI đang tính toán chuỗi dữ liệu..."):
+            with st.spinner("AI đang phân tích chuỗi dữ liệu..."):
                 seq_len = min(60, len(df))
                 recent_data = df['Close'].values[-seq_len:].reshape(-1, 1)
                 
@@ -302,19 +302,81 @@ def run_finance_app():
                 preds_scaled = predict_autoregressive(model, data_scaled, steps=forecast_days, device=device)
                 preds = scaler.inverse_transform(preds_scaled)
                 
-                st.markdown("### 📊 Kết quả Dự báo L-GRU")
+                st.markdown("### 🌟 Tổng quan Dự báo L-GRU")
+                
+                # --- PHẦN MỚI 1: TÍNH TOÁN VÀ HIỂN THỊ METRIC CARDS ---
+                current_price = df['Close'].iloc[-1]
+                final_predicted_price = preds[-1, 0] # Giá ở ngày cuối cùng của chu kỳ dự báo
+                price_change = final_predicted_price - current_price
+                pct_change = (price_change / current_price) * 100
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("💵 Giá hiện tại", f"${current_price:,.2f}")
+                with col2:
+                    st.metric(f"🎯 Dự báo (sau {forecast_days} ngày)", f"${final_predicted_price:,.2f}", f"{price_change:+,.2f} ({pct_change:+.2f}%)")
+                with col3:
+                    # Hiển thị tín hiệu dễ hiểu cho người không chuyên
+                    if pct_change > 2:
+                        st.info("🚀 **Tín hiệu AI:** Xu hướng TĂNG RÕ RỆT (Tích cực)")
+                    elif pct_change < -2:
+                        st.error("📉 **Tín hiệu AI:** Xu hướng GIẢM (Thận trọng)")
+                    else:
+                        st.warning("⚖️ **Tín hiệu AI:** Đi ngang / Biến động nhẹ")
+                
+                st.divider()
+                st.markdown("### 📊 Phân tích Biểu đồ Trực quan")
+                
+                # Chuẩn bị dữ liệu thời gian
                 last_date = pd.to_datetime(df['Date'].iloc[-1])
                 future_dates = [last_date + timedelta(days=i+1) for i in range(forecast_days)]
                 
                 past_dates = pd.to_datetime(df['Date'].iloc[-30:])
                 past_prices = df['Close'].iloc[-30:].values
                 
+                # --- PHẦN MỚI 2: NÂNG CẤP BIỂU ĐỒ PLOTLY ---
                 fig = go.Figure()
-                fig.add_trace(go.Scatter(x=past_dates, y=past_prices, mode='lines+markers', name='Thực tế', line=dict(color='#2563EB', width=2)))
-                fig.add_trace(go.Scatter(x=[past_dates.iloc[-1]] + future_dates, y=[past_prices[-1]] + list(preds[:, 0]), mode='lines+markers', name='Dự báo AI', line=dict(color='#EF4444', width=2, dash='dash')))
-                fig.update_layout(title=f"Dự báo giá {model_choice} ({forecast_days} ngày tới)", xaxis_title="Thời gian (Ngày)", yaxis_title="Giá ($)", hovermode="x unified", template="plotly_white")
+                
+                # Line quá khứ
+                fig.add_trace(go.Scatter(
+                    x=past_dates, y=past_prices, 
+                    mode='lines+markers', name='Dữ liệu Thực tế', 
+                    line=dict(color='#64748B', width=2) # Đổi màu xám nhạt hơn để nhường sân khấu cho phần dự báo
+                ))
+                
+                # Line dự báo (Thêm fill='tozeroy' để tạo bóng mờ)
+                fig.add_trace(go.Scatter(
+                    x=[past_dates.iloc[-1]] + future_dates, 
+                    y=[past_prices[-1]] + list(preds[:, 0]), 
+                    mode='lines+markers', name='Dự báo AI (L-GRU)', 
+                    line=dict(color='#10B981' if pct_change >= 0 else '#EF4444', width=3), # Đổi màu xanh/đỏ tùy xu hướng
+                    fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.1)' if pct_change >= 0 else 'rgba(239, 68, 68, 0.1)'
+                ))
+                
+                # Thêm vạch kẻ dọc ngăn cách Hiện tại và Tương lai
+                fig.add_vline(
+                    x=last_date, line_width=2, line_dash="dash", line_color="gray",
+                    annotation_text="← Thực tế | Dự báo →", annotation_position="top"
+                )
+                
+                fig.update_layout(
+                    title=f"Lộ trình giá {model_choice} trong {forecast_days} ngày tới",
+                    xaxis_title="Thời gian (Ngày)", 
+                    yaxis_title="Giá ($)", 
+                    hovermode="x unified", 
+                    template="plotly_white",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                
                 st.plotly_chart(fig, width='stretch')
-
+                
+                # Bảng chi tiết
+                with st.expander("🧮 Xem chi tiết bảng giá dự báo từng ngày"):
+                    res_df = pd.DataFrame({
+                        "Ngày": [d.strftime('%Y-%m-%d') for d in future_dates],
+                        "Giá dự báo ($)": preds[:, 0].round(2)
+                    })
+                    st.dataframe(res_df, width='stretch', hide_index=True)
 # -------------------------------------------------------------
 # 5. KHỞI CHẠY ỨNG DỤNG
 # -------------------------------------------------------------

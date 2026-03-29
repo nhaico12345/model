@@ -5,3 +5,4 @@ torch
 scikit-learn
 plotly
 openpyxl
+yfinance

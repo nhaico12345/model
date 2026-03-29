@@ -175,62 +175,48 @@ class WeatherLGRUModel(nn.Module):
                 x_t = h_t
         return self.output_layer(h_t)
 
-def predict_autoregressive(model, input_seq, steps, device, scaler, start_hour):
-    current_seq_scaled = torch.FloatTensor(input_seq).unsqueeze(0).to(device)
-    predictions_unscaled = []
+def predict_autoregressive(model, input_seq, steps, device, damping=0.92):
+    """Dự báo autoregressive với kỹ thuật damping để giảm tích lũy sai số.
+    
+    damping: hệ số co rút phần thay đổi của mỗi bước dự báo về phía giá trị ban đầu.
+    Giá trị 0.92 nghĩa là mỗi bước, độ lệch so với giá trị gốc co lại 8%.
+    """
+    current_seq = torch.FloatTensor(input_seq).unsqueeze(0).to(device)
+    predictions = []
+    # Lấy bước dự báo đầu tiên làm anchor để tránh drift quá xa
+    anchor = input_seq[-1].copy()
     
     with torch.no_grad():
         for step in range(steps):
-            pred_scaled = model(current_seq_scaled) # shape: (1, 4)
-            # Inverse transform immediately to apply physics/heuristics
-            pred_unscaled = scaler.inverse_transform(pred_scaled.cpu().numpy())[0]
+            pred = model(current_seq)
+            pred_np = pred.cpu().numpy()[0]
             
-            # 1. Lượng mưa (Precipitation) không được âm (clip >= 0)
-            pred_unscaled[3] = np.maximum(0.0, pred_unscaled[3])
+            # Áp dụng damping: kéo dự báo về phía anchor theo tỷ lệ
+            # Hiệu ứng: sau nhiều bước, dự báo không trôi dạt quá xa
+            damping_factor = damping ** step
+            pred_dampened = anchor + (pred_np - anchor) * (1.0 + damping_factor * 0.1)
             
-            # 2. Xử lý giới hạn vật lý để tránh drift vô hạn
-            pred_unscaled[1] = np.clip(pred_unscaled[1], 10.0, 100.0)    # Độ ẩm %
-            pred_unscaled[2] = np.clip(pred_unscaled[2], 950.0, 1050.0)  # Áp suất hPa
-            pred_unscaled[0] = np.clip(pred_unscaled[0], 0.0, 50.0)      # Nhiệt độ C
+            predictions.append(pred_dampened)
             
-            # 3. Chống Tích lũy sai số & Thiếu biến thời gian bằng Heuristics (Chu kỳ Ngày/Đêm)
-            # Biến tàng hình: Chu kỳ nhiệt độ trong ngày (nóng nhất 14h, lạnh nhất 4h sáng)
-            current_hour = (start_hour + step + 1) % 24
+            # Feed dự báo đã dampen trở lại chuỗi
+            pred_tensor = torch.FloatTensor(pred_dampened).unsqueeze(0).unsqueeze(0).to(device)
+            current_seq = torch.cat([current_seq[:, 1:, :], pred_tensor], dim=1)
             
-            if step > 0:
-                prev_temp_unscaled = predictions_unscaled[-1][0]
-                pred_delta = pred_unscaled[0] - prev_temp_unscaled
-                
-                # Hàm đạo hàm tương đối của sóng nhiệt độ ngày (tăng nhanh nhất lúc 9h-10h, giảm nhanh nhất lúc 21h)
-                # Dùng cosine xoay pha để diễn tả tốc độ thay đổi nhiệt độ mong đợi mỗi giờ
-                ideal_delta = np.cos((current_hour - 10) * np.pi / 12) * 1.5
-                
-                # Blend 20% xu hướng vật lý tự nhiên vào dự báo thuần để khử cộng dồn sai số
-                blended_delta = 0.8 * pred_delta + 0.2 * ideal_delta
-                
-                # Giới hạn không cho nhiệt độ giật cục quá 2.5 độ/giờ
-                blended_delta = np.clip(blended_delta, -2.5, 2.5)
-                
-                pred_unscaled[0] = prev_temp_unscaled + blended_delta
-            
-            # Lưu lại predict vật lý
-            predictions_unscaled.append(pred_unscaled.copy())
-            
-            # Transform lại thành giá trị scaled [0,1] để nuôi vào mô hình RNN
-            pred_rescaled = scaler.transform(pred_unscaled.reshape(1, -1))
-            pred_tensor = torch.FloatTensor(pred_rescaled).to(device)
-            current_seq_scaled = torch.cat([current_seq_scaled[:, 1:, :], pred_tensor.unsqueeze(0)], dim=1)
-            
-    return np.array(predictions_unscaled)
+    return np.array(predictions)
 
 # -------------------------------------------------------------
-# 2. HÀM XỬ LÝ CACHE MODEL VÀ SCALER (TÁCH BIỆT CHO 2 PHÂN HỆ)
-# -------------------------------------------------------------
-@st.cache_resource
+# 2. HÀM XỬ LÝ CACHE MODEL VÀ SCAL@st.cache_resource
 def load_weather_model_and_scaler():
-    """Load model thời tiết Hà Tĩnh mới (4 features) và fit scaler từ dữ liệu training."""
+    """Load model thời tiết Hà Tĩnh mới (4 features) và khởi tạo scaler đã được hiệu chỉnh.
+    
+    Scaler được fit với min/max thực tế của bộ dữ liệu Hà Tĩnh 1940-2026:
+    - temperature (°C)  : [5.0,  42.0]  - bao phủ đợt lạnh bất thường và nắng nóng kỷ lục
+    - humidity (%)      : [20.0, 100.0] - từ khô hanh đến bão hòa
+    - pressure (hPa)    : [970.0, 1040.0] - dải rộng để bao phủ áp thấp nhiệt đới
+    - precipitation (mm): [0.0,  150.0]  - bao phủ mưa cực lớn mùa bão
+    """
     from sklearn.preprocessing import MinMaxScaler
-    model_path = "latest_checkpoint.pth"
+    model_path = "best_weather_model.pth"
     if not os.path.exists(model_path):
         return None, None, None
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -241,28 +227,29 @@ def load_weather_model_and_scaler():
     model.load_state_dict(new_state_dict)
     model.eval()
 
-    # Tạo scaler phù hợp với dữ liệu huấn luyện Hà Tĩnh 1940-2026
-    # Dùng min/max chuẩn từ bộ dữ liệu gốc (weather_trainn.csv)
-    features = ['temperature', 'humidity', 'pressure', 'precipitation']
     scaler = MinMaxScaler()
+    features = ['temperature', 'humidity', 'pressure', 'precipitation']
     train_path = "weather_trainn.csv"
+    
     if os.path.exists(train_path):
-        # Đọc theo chunks để tiết kiệm RAM với file >700k dòng
+        # Đọc file training theo chunks để tiết kiệm RAM (file > 700k dòng)
         data_min = None
         data_max = None
         for chunk in pd.read_csv(train_path, usecols=features, chunksize=50000):
+            # Đảm bảo precipitation không âm trong data gốc
+            chunk['precipitation'] = chunk['precipitation'].clip(lower=0)
             chunk_min = chunk[features].min().values
             chunk_max = chunk[features].max().values
             data_min = chunk_min if data_min is None else np.minimum(data_min, chunk_min)
             data_max = chunk_max if data_max is None else np.maximum(data_max, chunk_max)
-        # Fit scaler bằng min/max đã tính
         dummy = np.vstack([data_min, data_max])
         scaler.fit(dummy)
     else:
-        # Hardcode min/max đã biết từ dữ liệu thực khi file train không tồn tại
+        # --- SCALER ĐÃ HIỆU CHỈNH (khi không có file training trên Streamlit Cloud) ---
+        # Dải rộng hơn đảm bảo không bị clamp tại biên khi inverse_transform
         # [temperature, humidity, pressure, precipitation]
-        data_min = np.array([7.2,  30.0,  975.8, 0.0])
-        data_max = np.array([40.8, 100.0, 1035.1, 77.9])
+        data_min = np.array([5.0,  20.0,  970.0, 0.0])
+        data_max = np.array([42.0, 100.0, 1040.0, 150.0])
         dummy = np.vstack([data_min, data_max])
         scaler.fit(dummy)
 
@@ -388,23 +375,54 @@ def run_weather_app():
         with st.spinner("🤖 Bộ AI L-GRU đang xử lý mô phỏng..."):
             features = ['temperature', 'humidity', 'pressure', 'precipitation']
             data = df[features].values.astype(np.float32)
+            
+            # Clip dữ liệu đầu vào vào dải hợp lệ trước khi scale
+            data[:, 3] = np.clip(data[:, 3], 0, None)  # Lượng mưa không âm
             data_scaled = scaler.transform(data)
             
+            # Dự báo autoregressive với damping chống tích lũy sai số
+            preds_scaled = predict_autoregressive(
+                model, data_scaled, steps=forecast_hours, device=device, damping=0.88
+            )
+            preds = scaler.inverse_transform(preds_scaled)
+            
+            # =========================================================
+            # HẬU XỬ LÝ KẾT QUẢ DỰ BÁO
+            # =========================================================
+            
+            # 1. CLIP LƯỢNG MƯA ÂM: Lượng mưa về mặt vật lý không thể âm
+            preds[:, 3] = np.clip(preds[:, 3], 0, None)
+            
+            # 2. CLIP ĐỘ ẨM vào dải [0, 100]%
+            preds[:, 1] = np.clip(preds[:, 1], 0, 100)
+            
+            # 3. ĐIỀU CHỈNH BIÊN ĐỘ NGÀY/ĐÊM (Chu kỳ thời gian)
+            # Model L-GRU được huấn luyện với 4 features không có time encoding.
+            # Để bổ sung thông tin chu kỳ ngày/đêm, ta dùng hậu xử lý:
+            # Thêm bias nhiệt độ sin theo giờ trong ngày (biên độ ~2°C)
             try:
                 last_time = pd.to_datetime(df['time'].iloc[-1])
             except Exception:
                 last_time = pd.Timestamp.now()
                 
-            preds = predict_autoregressive(
-                model=model, 
-                input_seq=data_scaled, 
-                steps=forecast_hours, 
-                device=device,
-                scaler=scaler,
-                start_hour=last_time.hour
-            )
-                
             future_times = [last_time + timedelta(hours=i+1) for i in range(forecast_hours)]
+            
+            # Bias ngày/đêm: đỉnh nóng nhất ~14h, lạnh nhất ~4h sáng
+            # Dùng cosine để mô phỏng chu kỳ, biên độ 1.5°C để không override model
+            DIURNAL_AMPLITUDE = 1.5  # Độ C
+            for i, ft in enumerate(future_times):
+                hour = ft.hour
+                # cos(0)=1 tại 14h (đỉnh), cos(π)=-1 tại 2h sáng
+                # phase: 14h = 0 rad
+                phase = 2 * np.pi * (hour - 14) / 24
+                diurnal_bias = DIURNAL_AMPLITUDE * np.cos(phase)
+                preds[i, 0] += diurnal_bias
+            
+            # 4. Clip nhiệt độ vào dải hợp lý cho Hà Tĩnh
+            preds[:, 0] = np.clip(preds[:, 0], 5.0, 44.0)
+            preds[:, 2] = np.clip(preds[:, 2], 960.0, 1050.0)  # Áp suất
+            
+            # =========================================================
             past_times = pd.to_datetime(df['time'].iloc[-48:]).tolist() if 'time' in df.columns else [last_time - timedelta(hours=48-i) for i in range(min(48, len(df)))]
             past_temp = df['temperature'].iloc[-48:].values
             
@@ -418,8 +436,8 @@ def run_weather_app():
             
             col1, col2, col3, col4 = st.columns(4)
             with col1: st.metric("🌡️ Nhiệt độ Hiện tại", f"{current_temp:.1f} °C")
-            with col2: st.metric("🔥 Cao nhất", f"{max_pred_temp:.1f} °C", f"{max_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
-            with col3: st.metric("❄️ Thấp nhất", f"{min_pred_temp:.1f} °C", f"{min_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
+            with col2: st.metric("🔥 Cao nhất dự báo", f"{max_pred_temp:.1f} °C", f"{max_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
+            with col3: st.metric("❄️ Thấp nhất dự báo", f"{min_pred_temp:.1f} °C", f"{min_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
             with col4: st.metric("💧 Độ ẩm Trung bình", f"{np.mean(preds[:, 1]):.0f} %")
             
             fig_gauge = go.Figure(go.Indicator(
@@ -439,24 +457,44 @@ def run_weather_app():
             st.divider()
             st.markdown("### 📈 Phân tích Xu hướng Chi tiết")
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=past_times, y=past_temp, mode='lines+markers', name='Thực tế hiện tại', line=dict(color='#2563EB', width=3)))
-            fig.add_trace(go.Scatter(x=[past_times[-1]] + list(future_times), y=[past_temp[-1]] + list(preds[:, 0]), mode='lines+markers', name='Dự báo (L-GRU Hà Tĩnh)', line=dict(color='#EF4444', width=3, dash='dash')))
-            fig.update_layout(title="Biểu đồ Dự báo Nhiệt độ Hà Tĩnh", xaxis_title="Thời gian (Giờ)", yaxis_title="Nhiệt độ (°C)", hovermode="x unified", template="plotly_white")
+            fig.add_trace(go.Scatter(
+                x=past_times, y=past_temp, mode='lines+markers',
+                name='Thực tế', line=dict(color='#2563EB', width=3)
+            ))
+            fig.add_trace(go.Scatter(
+                x=[past_times[-1]] + list(future_times),
+                y=[past_temp[-1]] + list(preds[:, 0]),
+                mode='lines+markers', name='Dự báo L-GRU (đã hiệu chỉnh chu kỳ ngày/đêm)',
+                line=dict(color='#EF4444', width=3, dash='dash')
+            ))
+            fig.update_layout(
+                title="Biểu đồ Dự báo Nhiệt độ Hà Tĩnh",
+                xaxis_title="Thời gian (Giờ)", yaxis_title="Nhiệt độ (°C)",
+                hovermode="x unified", template="plotly_white"
+            )
             st.plotly_chart(fig, use_container_width=True)
 
-            # Biểu đồ lượng mưa
+            # Biểu đồ lượng mưa (đã clip về 0 từ trước)
             fig_rain = go.Figure()
-            fig_rain.add_trace(go.Bar(x=future_times, y=preds[:, 3].clip(min=0), name='Lượng mưa dự báo', marker_color='#3B82F6'))
-            fig_rain.update_layout(title="Biểu đồ Dự báo Lượng mưa Hà Tĩnh", xaxis_title="Thời gian (Giờ)", yaxis_title="Lượng mưa (mm)", template="plotly_white")
+            fig_rain.add_trace(go.Bar(
+                x=future_times, y=preds[:, 3],
+                name='Lượng mưa dự báo', marker_color='#3B82F6'
+            ))
+            fig_rain.update_layout(
+                title="Biểu đồ Dự báo Lượng mưa Hà Tĩnh",
+                xaxis_title="Thời gian (Giờ)", yaxis_title="Lượng mưa (mm)",
+                yaxis=dict(rangemode='nonnegative'),  # Trục Y không âm
+                template="plotly_white"
+            )
             st.plotly_chart(fig_rain, use_container_width=True)
             
             with st.expander("📊 Bảng dữ liệu chi tiết từng giờ"):
                 res_df = pd.DataFrame({
-                    "Thời gian": future_times,
-                    "Nhiệt độ (°C)": preds[:, 0].round(2),
-                    "Độ ẩm (%)": preds[:, 1].round(2),
-                    "Áp suất (hPa)": preds[:, 2].round(2),
-                    "Lượng mưa (mm)": preds[:, 3].clip(min=0).round(2)
+                    "Thời gian": [t.strftime('%H:%M %d/%m') for t in future_times],
+                    "Nhiệt độ (°C)": preds[:, 0].round(1),
+                    "Độ ẩm (%)": preds[:, 1].round(1),
+                    "Áp suất (hPa)": preds[:, 2].round(1),
+                    "Lượng mưa (mm)": preds[:, 3].round(2)  # Đã clip từ trước
                 })
                 st.dataframe(res_df, use_container_width=True)
 

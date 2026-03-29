@@ -256,3 +256,869 @@ Traceback (most recent call last):
     data_scaled = scaler.transform(data)
 IndentationError: unexpected indent
 2026-03-29 15:53:34.375 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:57:46.611 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:57:46.613 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+[15:57:46] ❗️ 
+2026-03-29 15:57:46.707 503 GET /script-health-check (127.0.0.1) 102.29ms
+2026-03-29 15:57:51.582 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:57:51.584 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:57:51.678 503 GET /script-health-check (127.0.0.1) 102.08ms
+2026-03-29 15:57:56.607 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:57:56.609 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:57:56.701 503 GET /script-health-check (127.0.0.1) 103.16ms
+2026-03-29 15:58:01.594 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:01.596 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:01.689 503 GET /script-health-check (127.0.0.1) 101.90ms
+2026-03-29 15:58:06.605 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:06.607 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:06.699 503 GET /script-health-check (127.0.0.1) 102.31ms
+2026-03-29 15:58:11.599 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:11.601 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:11.694 503 GET /script-health-check (127.0.0.1) 101.41ms
+2026-03-29 15:58:16.597 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:16.598 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:16.691 503 GET /script-health-check (127.0.0.1) 102.39ms
+2026-03-29 15:58:21.594 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:21.596 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:21.690 503 GET /script-health-check (127.0.0.1) 102.54ms
+2026-03-29 15:58:26.592 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:26.594 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:26.685 503 GET /script-health-check (127.0.0.1) 101.72ms
+2026-03-29 15:58:31.590 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:31.592 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:31.685 503 GET /script-health-check (127.0.0.1) 102.33ms
+2026-03-29 15:58:36.593 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:36.595 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:36.689 503 GET /script-health-check (127.0.0.1) 102.50ms
+2026-03-29 15:58:41.596 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:41.598 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:41.691 503 GET /script-health-check (127.0.0.1) 101.80ms
+2026-03-29 15:58:46.600 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:46.602 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:46.695 503 GET /script-health-check (127.0.0.1) 102.49ms
+2026-03-29 15:58:51.605 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:51.606 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:51.700 503 GET /script-health-check (127.0.0.1) 101.56ms
+2026-03-29 15:58:56.616 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:58:56.618 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:58:56.711 503 GET /script-health-check (127.0.0.1) 102.57ms
+2026-03-29 15:59:01.619 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:01.621 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:01.715 503 GET /script-health-check (127.0.0.1) 102.27ms
+2026-03-29 15:59:06.620 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:06.621 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:06.715 503 GET /script-health-check (127.0.0.1) 102.34ms
+2026-03-29 15:59:11.633 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:11.636 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:11.726 503 GET /script-health-check (127.0.0.1) 102.17ms
+2026-03-29 15:59:16.648 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:16.650 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:16.739 503 GET /script-health-check (127.0.0.1) 102.53ms
+2026-03-29 15:59:21.601 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:21.602 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:21.696 503 GET /script-health-check (127.0.0.1) 102.20ms
+2026-03-29 15:59:26.608 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:26.610 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:26.701 503 GET /script-health-check (127.0.0.1) 101.65ms
+2026-03-29 15:59:31.595 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:31.597 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:31.690 503 GET /script-health-check (127.0.0.1) 102.02ms
+2026-03-29 15:59:36.621 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:36.623 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:36.714 503 GET /script-health-check (127.0.0.1) 101.87ms
+2026-03-29 15:59:41.605 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:41.606 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:41.700 503 GET /script-health-check (127.0.0.1) 102.08ms
+2026-03-29 15:59:46.603 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:46.606 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:46.696 503 GET /script-health-check (127.0.0.1) 101.72ms
+2026-03-29 15:59:51.612 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:51.613 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:51.707 503 GET /script-health-check (127.0.0.1) 101.69ms
+2026-03-29 15:59:56.593 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:59:56.595 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 15:59:56.687 503 GET /script-health-check (127.0.0.1) 102.11ms
+2026-03-29 16:00:01.605 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:01.607 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:01.700 503 GET /script-health-check (127.0.0.1) 101.40ms
+2026-03-29 16:00:06.608 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:06.610 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:06.704 503 GET /script-health-check (127.0.0.1) 102.43ms
+2026-03-29 16:00:11.607 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:11.609 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:11.700 503 GET /script-health-check (127.0.0.1) 102.46ms
+2026-03-29 16:00:16.640 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:16.643 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:16.734 503 GET /script-health-check (127.0.0.1) 104.71ms
+2026-03-29 16:00:21.592 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:21.594 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:21.688 503 GET /script-health-check (127.0.0.1) 101.98ms
+2026-03-29 16:00:26.599 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:26.601 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:26.694 503 GET /script-health-check (127.0.0.1) 102.21ms
+2026-03-29 16:00:31.597 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:31.598 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:31.692 503 GET /script-health-check (127.0.0.1) 102.53ms
+2026-03-29 16:00:36.596 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:36.597 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:36.690 503 GET /script-health-check (127.0.0.1) 101.63ms
+2026-03-29 16:00:41.603 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:41.604 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:41.698 503 GET /script-health-check (127.0.0.1) 101.79ms
+2026-03-29 16:00:46.599 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:46.600 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:46.693 503 GET /script-health-check (127.0.0.1) 101.93ms
+2026-03-29 16:00:51.598 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:51.600 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:51.693 503 GET /script-health-check (127.0.0.1) 102.24ms
+2026-03-29 16:00:56.596 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:00:56.597 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:00:56.690 503 GET /script-health-check (127.0.0.1) 102.02ms
+2026-03-29 16:01:01.598 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:01:01.600 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:01:01.694 503 GET /script-health-check (127.0.0.1) 102.80ms
+2026-03-29 16:01:06.604 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:01:06.606 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:01:06.699 503 GET /script-health-check (127.0.0.1) 102.47ms
+2026-03-29 16:01:11.602 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:01:11.603 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:01:11.697 503 GET /script-health-check (127.0.0.1) 102.12ms
+2026-03-29 16:01:16.617 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:01:16.621 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:01:16.712 503 GET /script-health-check (127.0.0.1) 102.46ms
+2026-03-29 16:01:21.603 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 16:01:21.605 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:01:21.699 503 GET /script-health-check (127.0.0.1) 102.38ms
+[16:01:21] 🐙 Pulling code changes from Github...
+2026-03-29 16:01:22.216 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 517
+    data_scaled = scaler.transform(recent_data)
+IndentationError: unexpected indent
+2026-03-29 16:01:22.219 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+[16:01:23] 📦 Processing dependencies...
+[16:01:23] 📦 Processed dependencies!
+[16:01:24] 🔄 Updated app!
+2026-03-29 16:01:26.603 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 517
+    data_scaled = scaler.transform(recent_data)
+IndentationError: unexpected indent
+2026-03-29 16:01:26.605 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-29 16:01:26.703 503 GET /script-health-check (127.0.0.1) 110.97ms
+[15:58:05] 🔌 Disconnecting...
+[15:58:10] 🖥 Provisioning machine...
+[16:01:35] 🚀 Starting up repository: 'model', branch: 'main', main module: 'app.py'
+[16:01:35] 🐙 Cloning repository...
+[16:01:38] 🐙 Cloning into '/mount/src/model'...
+
+[16:01:38] 🐙 Cloned repository!
+[16:01:38] 🐙 Pulling code changes from Github...
+[15:58:12] 🎛 Preparing system...
+[15:58:12] ⛓ Spinning up manager process...
+[16:01:39] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+Using Python 3.14.3 environment at /home/adminuser/venv
+Resolved 70 packages in 868ms
+Prepared 70 packages in 31.52s
+Installed 70 packages in 1.01s
+ + altair==6.0.0
+ + attrs==26.1.0
+ + blinker==1.9.0
+ + cachetools==7.0.5
+ + certifi==2026.2.25
+ + charset-normalizer==3.4.6[2026-03-29 16:02:13.598437] 
+ + click==8.3.1
+ + cuda-bindings==13.2.0
+ + cuda-pathfinder==1.5.0
+ + cuda-toolkit==13.0.2
+ + et-xmlfile==2.0.0
+ + filelock==3.25.2[2026-03-29 16:02:13.598681] 
+ + fsspec==2026.3.0
+ + gitdb==4.0.12
+ + gitpython==3.1.46
+ + idna==3.11
+ + jinja2==3.1.6
+ + [2026-03-29 16:02:13.598928] joblib==1.5.3
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markupsafe==3.0.3
+ + mpmath==1.3.0
+ + narwhals==2.18.1
+ + networkx==3.6.1
+ + numpy==[2026-03-29 16:02:13.599128] 2.4.4
+ + nvidia-cublas==13.1.0.3
+ + nvidia-cuda-cupti==13.0.85
+ + nvidia-cuda-nvrtc==13.0.88
+ + nvidia-cuda-runtime==13.0.96
+ + nvidia-cudnn-cu13==[2026-03-29 16:02:13.599372] 9.19.0.56
+ + nvidia-cufft==12.0.0.61
+ + nvidia-cufile==1.15.1.6
+ + nvidia-curand==10.4.0.35
+ + nvidia-cusolver==12.0.4.66
+ + nvidia-cusparse==12.6.3.3
+ [2026-03-29 16:02:13.599557] + nvidia-cusparselt-cu13==0.8.0
+ + nvidia-nccl-cu13==2.28.9
+ + nvidia-nvjitlink==13.0.88
+ + nvidia-nvshmem-cu13==3.4.5
+ + nvidia-nvtx==13.0.85[2026-03-29 16:02:13.599689] 
+ + openpyxl==3.1.5
+ + packaging==26.0
+ + pandas==2.3.3
+ + pillow==12.1.1
+ + [2026-03-29 16:02:13.599816] plotly==6.6.0
+ + protobuf==6.33.6
+ + pyarrow==23.0.1
+ + pydeck==0.9.1
+ + python-dateutil==2.9.0.post0
+ + pytz==2026.1.post1
+ + referencing==0.37.0
+ + requests==2.33.0
+ + rpds-py==0.30.0
+ [2026-03-29 16:02:13.600065] + scikit-learn==1.8.0
+ + scipy==1.17.1
+ + setuptools==81.0.0
+ + six==1.17.0
+ + [2026-03-29 16:02:13.600233] smmap==5.0.3
+ + streamlit==1.55.0
+ + sympy==1.14.0
+ + tenacity==9.1.4
+ + threadpoolctl==3.6.0
+ +[2026-03-29 16:02:13.600366]  toml==0.10.2
+ + torch==2.11.0
+ + tornado==6.5.5
+ + triton==3.6.0
+ + typing-extensions[2026-03-29 16:02:13.600493] ==4.15.0
+ + tzdata==2025.3
+ + urllib3==2.6.3
+ + watchdog==6.0.0
+Checking if Streamlit is installed
+Found Streamlit version 1.55.0 in the environment
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.14.3 environment at /home/adminuser/venv
+Resolved 4 packages in 157ms
+Prepared 4 packages in 193ms
+Installed 4 packages in 15ms
+ + [2026-03-29 16:02:17.087742] markdown-it-py==4.0.0
+ + mdurl==0.1.2
+ + pygments==2.20.0
+ + rich==14.3.3
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[16:02:17] 🐍 Python dependencies were installed from /mount/src/model/requirements.txt using uv.
+Check if streamlit is installed
+Streamlit is already installed
+[16:02:18] 📦 Processed dependencies!
+
+
+
+2026-03-29 16:02:24.252 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 517
+    data_scaled = scaler.transform(recent_data)
+IndentationError: unexpected indent
+2026-03-29 16:02:24.256 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.

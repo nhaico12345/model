@@ -354,71 +354,71 @@ def run_weather_app():
         with st.spinner("🤖 Bộ AI L-GRU đang xử lý mô phỏng..."):
             features = ['temperature', 'humidity', 'pressure', 'precipitation']
             data = df[features].values.astype(np.float32)
-                data_scaled = scaler.transform(data)
+            data_scaled = scaler.transform(data)
+            
+            preds_scaled = predict_autoregressive(model, data_scaled, steps=forecast_hours, device=device)
+            preds = scaler.inverse_transform(preds_scaled)
+            
+            try:
+                last_time = pd.to_datetime(df['time'].iloc[-1])
+            except Exception:
+                last_time = pd.Timestamp.now()
                 
-                preds_scaled = predict_autoregressive(model, data_scaled, steps=forecast_hours, device=device)
-                preds = scaler.inverse_transform(preds_scaled)
-                
-                try:
-                    last_time = pd.to_datetime(df['time'].iloc[-1])
-                except Exception:
-                    last_time = pd.Timestamp.now()
-                    
-                future_times = [last_time + timedelta(hours=i+1) for i in range(forecast_hours)]
-                past_times = pd.to_datetime(df['time'].iloc[-48:]).tolist() if 'time' in df.columns else [last_time - timedelta(hours=48-i) for i in range(min(48, len(df)))]
-                past_temp = df['temperature'].iloc[-48:].values
-                
-                st.divider()
-                st.markdown("### 🌟 Tổng quan Dự báo")
-                
-                current_temp = past_temp[-1]
-                max_pred_temp = np.max(preds[:, 0])
-                min_pred_temp = np.min(preds[:, 0])
-                avg_pred_temp = np.mean(preds[:, 0])
-                
-                col1, col2, col3, col4 = st.columns(4)
-                with col1: st.metric("🌡️ Nhiệt độ Hiện tại", f"{current_temp:.1f} °C")
-                with col2: st.metric("🔥 Cao nhất", f"{max_pred_temp:.1f} °C", f"{max_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
-                with col3: st.metric("❄️ Thấp nhất", f"{min_pred_temp:.1f} °C", f"{min_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
-                with col4: st.metric("💧 Độ ẩm Trung bình", f"{np.mean(preds[:, 1]):.0f} %")
-                
-                fig_gauge = go.Figure(go.Indicator(
-                    mode = "gauge+number", value = avg_pred_temp, domain = {'x': [0, 1], 'y': [0, 1]},
-                    title = {'text': "Nhiệt độ Trung bình Dự báo", 'font': {'size': 20}}, number = {'suffix': " °C", 'font': {'size': 40}},
-                    gauge = {
-                        'axis': {'range': [10, 45], 'tickwidth': 1, 'tickcolor': "darkblue"}, 'bar': {'color': "rgba(0,0,0,0.3)"},
-                        'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
-                        'steps': [{'range': [10, 20], 'color': '#60A5FA'}, {'range': [20, 28], 'color': '#34D399'},
-                                  {'range': [28, 35], 'color': '#fbbf24'}, {'range': [35, 45], 'color': '#F87171'}],
-                        'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': max_pred_temp}
-                    }
-                ))
-                fig_gauge.update_layout(height=350, margin=dict(l=10, r=10, t=50, b=10))
-                st.plotly_chart(fig_gauge, use_container_width=True)
-                
-                st.divider()
-                st.markdown("### 📈 Phân tích Xu hướng Chi tiết")
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=past_times, y=past_temp, mode='lines+markers', name='Thực tế hiện tại', line=dict(color='#2563EB', width=3)))
-                fig.add_trace(go.Scatter(x=[past_times[-1]] + list(future_times), y=[past_temp[-1]] + list(preds[:, 0]), mode='lines+markers', name='Dự báo (L-GRU Hà Tĩnh)', line=dict(color='#EF4444', width=3, dash='dash')))
-                fig.update_layout(title="Biểu đồ Dự báo Nhiệt độ Hà Tĩnh", xaxis_title="Thời gian (Giờ)", yaxis_title="Nhiệt độ (°C)", hovermode="x unified", template="plotly_white")
-                st.plotly_chart(fig, use_container_width=True)
+            future_times = [last_time + timedelta(hours=i+1) for i in range(forecast_hours)]
+            past_times = pd.to_datetime(df['time'].iloc[-48:]).tolist() if 'time' in df.columns else [last_time - timedelta(hours=48-i) for i in range(min(48, len(df)))]
+            past_temp = df['temperature'].iloc[-48:].values
+            
+            st.divider()
+            st.markdown("### 🌟 Tổng quan Dự báo")
+            
+            current_temp = past_temp[-1]
+            max_pred_temp = np.max(preds[:, 0])
+            min_pred_temp = np.min(preds[:, 0])
+            avg_pred_temp = np.mean(preds[:, 0])
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1: st.metric("🌡️ Nhiệt độ Hiện tại", f"{current_temp:.1f} °C")
+            with col2: st.metric("🔥 Cao nhất", f"{max_pred_temp:.1f} °C", f"{max_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
+            with col3: st.metric("❄️ Thấp nhất", f"{min_pred_temp:.1f} °C", f"{min_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
+            with col4: st.metric("💧 Độ ẩm Trung bình", f"{np.mean(preds[:, 1]):.0f} %")
+            
+            fig_gauge = go.Figure(go.Indicator(
+                mode = "gauge+number", value = avg_pred_temp, domain = {'x': [0, 1], 'y': [0, 1]},
+                title = {'text': "Nhiệt độ Trung bình Dự báo", 'font': {'size': 20}}, number = {'suffix': " °C", 'font': {'size': 40}},
+                gauge = {
+                    'axis': {'range': [10, 45], 'tickwidth': 1, 'tickcolor': "darkblue"}, 'bar': {'color': "rgba(0,0,0,0.3)"},
+                    'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
+                    'steps': [{'range': [10, 20], 'color': '#60A5FA'}, {'range': [20, 28], 'color': '#34D399'},
+                              {'range': [28, 35], 'color': '#fbbf24'}, {'range': [35, 45], 'color': '#F87171'}],
+                    'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': max_pred_temp}
+                }
+            ))
+            fig_gauge.update_layout(height=350, margin=dict(l=10, r=10, t=50, b=10))
+            st.plotly_chart(fig_gauge, use_container_width=True)
+            
+            st.divider()
+            st.markdown("### 📈 Phân tích Xu hướng Chi tiết")
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=past_times, y=past_temp, mode='lines+markers', name='Thực tế hiện tại', line=dict(color='#2563EB', width=3)))
+            fig.add_trace(go.Scatter(x=[past_times[-1]] + list(future_times), y=[past_temp[-1]] + list(preds[:, 0]), mode='lines+markers', name='Dự báo (L-GRU Hà Tĩnh)', line=dict(color='#EF4444', width=3, dash='dash')))
+            fig.update_layout(title="Biểu đồ Dự báo Nhiệt độ Hà Tĩnh", xaxis_title="Thời gian (Giờ)", yaxis_title="Nhiệt độ (°C)", hovermode="x unified", template="plotly_white")
+            st.plotly_chart(fig, use_container_width=True)
 
-                # Biểu đồ lượng mưa
-                fig_rain = go.Figure()
-                fig_rain.add_trace(go.Bar(x=future_times, y=preds[:, 3].clip(min=0), name='Lượng mưa dự báo', marker_color='#3B82F6'))
-                fig_rain.update_layout(title="Biểu đồ Dự báo Lượng mưa Hà Tĩnh", xaxis_title="Thời gian (Giờ)", yaxis_title="Lượng mưa (mm)", template="plotly_white")
-                st.plotly_chart(fig_rain, use_container_width=True)
-                
-                with st.expander("📊 Bảng dữ liệu chi tiết từng giờ"):
-                    res_df = pd.DataFrame({
-                        "Thời gian": future_times,
-                        "Nhiệt độ (°C)": preds[:, 0].round(2),
-                        "Độ ẩm (%)": preds[:, 1].round(2),
-                        "Áp suất (hPa)": preds[:, 2].round(2),
-                        "Lượng mưa (mm)": preds[:, 3].clip(min=0).round(2)
-                    })
-                    st.dataframe(res_df, use_container_width=True)
+            # Biểu đồ lượng mưa
+            fig_rain = go.Figure()
+            fig_rain.add_trace(go.Bar(x=future_times, y=preds[:, 3].clip(min=0), name='Lượng mưa dự báo', marker_color='#3B82F6'))
+            fig_rain.update_layout(title="Biểu đồ Dự báo Lượng mưa Hà Tĩnh", xaxis_title="Thời gian (Giờ)", yaxis_title="Lượng mưa (mm)", template="plotly_white")
+            st.plotly_chart(fig_rain, use_container_width=True)
+            
+            with st.expander("📊 Bảng dữ liệu chi tiết từng giờ"):
+                res_df = pd.DataFrame({
+                    "Thời gian": future_times,
+                    "Nhiệt độ (°C)": preds[:, 0].round(2),
+                    "Độ ẩm (%)": preds[:, 1].round(2),
+                    "Áp suất (hPa)": preds[:, 2].round(2),
+                    "Lượng mưa (mm)": preds[:, 3].clip(min=0).round(2)
+                })
+                st.dataframe(res_df, use_container_width=True)
 
 # -------------------------------------------------------------
 # 4. PHÂN HỆ TÀI CHÍNH

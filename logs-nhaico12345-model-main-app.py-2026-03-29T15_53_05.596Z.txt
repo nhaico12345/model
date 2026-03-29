@@ -1,0 +1,258 @@
+
+[     UTC     ] Logs for testmodeldaihochatinh.streamlit.app/
+────────────────────────────────────────────────────────────────────────────────────────
+[15:30:20] 🖥 Provisioning machine...
+[15:31:45] 🎛 Preparing system...
+[15:31:45] ⛓ Spinning up manager process...
+[15:33:51] 🚀 Starting up repository: 'model', branch: 'main', main module: 'app.py'
+[15:33:51] 🐙 Cloning repository...
+[15:33:55] 🐙 Cloning into '/mount/src/model'...
+
+[15:33:55] 🐙 Cloned repository!
+[15:33:55] 🐙 Pulling code changes from Github...
+[15:33:56] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+Using Python 3.14.3 environment at /home/adminuser/venv
+Resolved 70 packages in 631ms
+Prepared 70 packages in 36.47s
+Installed 70 packages in 671ms
+ + altair==6.0.0
+ + attrs==26.1.0
+ + blinker==1.9.0
+ + cachetools==7.0.5
+ + certifi==2026.2.25
+ + charset-normalizer==3.4.6
+ + click==8.3.1
+ + cuda-bindings==13.2.0
+ [2026-03-29 15:34:34.237574] + cuda-pathfinder==1.5.0
+ + cuda-toolkit==13.0.2
+ + et-xmlfile==2.0.0
+ + filelock==3.25.2
+ + fsspec==2026.3.0
+ + gitdb==4.0.12
+ + gitpython==3.1.46
+ + idna==3.11[2026-03-29 15:34:34.237808] 
+ + jinja2==3.1.6
+ + joblib==1.5.3
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markupsafe==3.0.3
+ + mpmath==1.3.0
+ [2026-03-29 15:34:34.238037] + narwhals==2.18.1
+ + networkx==3.6.1
+ + numpy==2.4.4
+ + nvidia-cublas==13.1.0.3
+ + nvidia-cuda-cupti==13.0.85
+ + nvidia-cuda-nvrtc==13.0.88
+ + nvidia-cuda-runtime==[2026-03-29 15:34:34.238282] 13.0.96
+ + nvidia-cudnn-cu13==9.19.0.56
+ + nvidia-cufft==12.0.0.61
+ + nvidia-cufile==1.15.1.6
+ + nvidia-curand==10.4.0.35
+ + nvidia-cusolver==12.0.4.66
+ + nvidia-cusparse==12.6.3.3
+ + nvidia-cusparselt-cu13==0.8.0
+ + nvidia-nccl-cu13==2.28.9
+ + nvidia-nvjitlink==13.0.88
+ + nvidia-nvshmem-cu13==3.4.5
+ + nvidia-nvtx==13.0.85
+ + openpyxl==3.1.5
+ + [2026-03-29 15:34:34.238822] packaging==26.0
+ + pandas==2.3.3
+ + pillow==12.1.1
+ + plotly==6.6.0
+ + protobuf==6.33.6
+ + pyarrow[2026-03-29 15:34:34.239074] ==23.0.1
+ + pydeck==0.9.1
+ + python-dateutil==2.9.0.post0
+ + pytz==2026.1.post1
+ + referencing==0.37.0
+ + [2026-03-29 15:34:34.239267] requests==2.33.0
+ + rpds-py==0.30.0
+ + scikit-learn==1.8.0
+ + scipy==1.17.1
+ + setuptools==[2026-03-29 15:34:34.239451] 81.0.0
+ + six==1.17.0
+ + smmap==5.0.3
+ + streamlit==1.55.0
+ + sympy==1.14.0
+ + tenacity==9.1.4[2026-03-29 15:34:34.239681] 
+ + threadpoolctl==3.6.0
+ + toml==0.10.2
+ + torch==2.11.0
+ + tornado==6.5.5
+ + triton==3.6.0
+ + typing-extensions==4.15.0
+ + tzdata==2025.3
+ + urllib3==2.6.3
+ [2026-03-29 15:34:34.240050] + watchdog==6.0.0
+Checking if Streamlit is installed
+Found Streamlit version 1.55.0 in the environment
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.14.3 environment at /home/adminuser/venv
+Resolved 4 packages in 134ms
+Prepared 4 packages in 121ms
+Installed 4 packages in 15ms
+ + markdown-it-py==4.0.0[2026-03-29 15:34:37.372181] 
+ + mdurl==0.1.2
+ + pygments==2.20.0
+ + rich==14.3.3
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[15:34:38] 🐍 Python dependencies were installed from /mount/src/model/requirements.txt using uv.
+Check if streamlit is installed
+Streamlit is already installed
+[15:34:39] 📦 Processed dependencies!
+
+
+
+[15:52:29] 🐙 Pulling code changes from Github...
+2026-03-29 15:52:30.151 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:52:30.155 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+[15:52:30] 📦 Processing dependencies...
+[15:52:30] 📦 Processed dependencies!
+[15:52:32] 🔄 Updated app!
+[15:49:14] 🔌 Disconnecting...
+[15:49:20] 🖥 Provisioning machine...
+[15:52:44] 🚀 Starting up repository: 'model', branch: 'main', main module: 'app.py'
+[15:52:44] 🐙 Cloning repository...
+[15:49:21] 🎛 Preparing system...
+[15:49:21] ⛓ Spinning up manager process...
+[15:52:47] 🐙 Cloning into '/mount/src/model'...
+
+[15:52:47] 🐙 Cloned repository!
+[15:52:47] 🐙 Pulling code changes from Github...
+[15:52:48] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+Using Python 3.14.3 environment at /home/adminuser/venv
+Resolved 70 packages in 630ms
+Prepared 70 packages in 33.99s
+Installed 70 packages in 671ms
+ + altair==6.0.0
+ + attrs==26.1.0[2026-03-29 15:53:24.362988] 
+ + blinker==1.9.0
+ + cachetools==7.0.5
+ + certifi==2026.2.25
+ [2026-03-29 15:53:24.363237] + charset-normalizer==3.4.6
+ + click==8.3.1
+ + cuda-bindings==13.2.0
+ + cuda-pathfinder==1.5.0
+ + cuda-toolkit==13.0.2
+ + et-xmlfile[2026-03-29 15:53:24.363454] ==2.0.0
+ + filelock==3.25.2
+ + fsspec==2026.3.0
+ + gitdb==4.0.12
+ + gitpython==3.1.46
+ + idna[2026-03-29 15:53:24.363762] ==3.11
+ + jinja2==3.1.6
+ + joblib==1.5.3
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markupsafe[2026-03-29 15:53:24.364013] ==3.0.3
+ + mpmath==1.3.0
+ + narwhals==2.18.1
+ + networkx==3.6.1
+ + numpy==2.4.4
+ [2026-03-29 15:53:24.364237] + nvidia-cublas==13.1.0.3
+ + nvidia-cuda-cupti==13.0.85
+ + nvidia-cuda-nvrtc==13.0.88
+ + nvidia-cuda-runtime==13.0.96
+ + nvidia-cudnn-cu13==9.19.0.56
+ + nvidia-cufft==12.0.0.61[2026-03-29 15:53:24.364413] 
+ + nvidia-cufile==1.15.1.6
+ + nvidia-curand==10.4.0.35
+ + nvidia-cusolver==12.0.4.66
+ + nvidia-cusparse==12.6.3.3
+ + nvidia-cusparselt-cu13==0.8.0
+ + nvidia-nccl-cu13==2.28.9
+ + nvidia-nvjitlink==13.0.88
+ + nvidia-nvshmem-cu13==3.4.5
+ +[2026-03-29 15:53:24.364707]  nvidia-nvtx==13.0.85
+ + openpyxl==3.1.5
+ + packaging==26.0
+ + pandas==2.3.3
+ +[2026-03-29 15:53:24.364834]  pillow==12.1.1
+ + plotly==6.6.0
+ + protobuf==6.33.6
+ + pyarrow==23.0.1
+ +[2026-03-29 15:53:24.364938]  pydeck==0.9.1
+ + python-dateutil==2.9.0.post0
+ + pytz==2026.1.post1
+ + referencing==[2026-03-29 15:53:24.365048] 0.37.0
+ + requests==2.33.0
+ + rpds-py==0.30.0
+ + [2026-03-29 15:53:24.365154] scikit-learn==1.8.0
+ + scipy==1.17.1
+ + setuptools==81.0.0
+ + six==1.17.0
+ + smmap==5.0.3
+ + streamlit==1.55.0
+ + sympy==1.14.0
+ [2026-03-29 15:53:24.365371] + tenacity==9.1.4
+ + threadpoolctl==3.6.0
+ + toml==0.10.2
+ + torch==2.11.0
+ +[2026-03-29 15:53:24.365487]  tornado==6.5.5
+ + triton==3.6.0
+ + typing-extensions==4.15.0
+ + tzdata==2025.3
+ +[2026-03-29 15:53:24.365675]  urllib3==2.6.3
+ + watchdog==6.0.0
+Checking if Streamlit is installed
+Found Streamlit version 1.55.0 in the environment
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.14.3 environment at /home/adminuser/venv
+Resolved 4 packages in 145ms
+Prepared 4 packages in 127ms
+Installed 4 packages in 13ms
+ + markdown-it-py==4.0.0
+ + mdurl==0.1.2
+ + pygments==2.20.0
+ + rich==14.3.3
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[15:53:27] 🐍 Python dependencies were installed from /mount/src/model/requirements.txt using uv.
+Check if streamlit is installed
+Streamlit is already installed
+[15:53:29] 📦 Processed dependencies!
+
+
+
+2026-03-29 15:53:34.370 Script compilation error
+Traceback (most recent call last):
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/usr/local/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/mount/src/model/app.py", line 357
+    data_scaled = scaler.transform(data)
+IndentationError: unexpected indent
+2026-03-29 15:53:34.375 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.

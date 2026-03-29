@@ -282,33 +282,78 @@ def run_weather_app():
     
     forecast_hours = st.sidebar.slider("Dự báo bao nhiêu giờ tiếp theo?", min_value=1, max_value=48, value=24)
     
-    st.markdown("### 📥 1. Tải lên dữ liệu thời tiết 24-48 giờ qua của Hà Tĩnh")
-    st.info("💡 File CSV cần có các cột: `time`, `temperature`, `humidity`, `pressure`, `precipitation`")
+    st.markdown("### 🗓️ 1. Chọn thời điểm bắt đầu dự báo")
+    st.info("💡 Không cần tải lên file. Hệ thống sẽ **tự động kết nối vệ tinh và tải dữ liệu thời tiết** 48 giờ trước thời điểm bạn chọn.")
     
-    uploaded_file = st.file_uploader("Chọn file định dạng CSV hoặc Excel", type=["csv", "xlsx"], key="weather_uploader")
-    
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
-        st.success("Tải dữ liệu thành công!")
+    col_date, col_time = st.columns(2)
+    with col_date:
+        today = pd.Timestamp.now('Asia/Bangkok').date()
+        min_date = today - timedelta(days=365*2) # Cho phép lùi 2 năm
+        selected_date = st.date_input("Ngày dự báo:", value=today, min_value=min_date, max_value=today)
+    with col_time:
+        selected_time = st.time_input("Giờ dự báo:", value=pd.Timestamp.now('Asia/Bangkok').time())
         
-        with st.expander("👁️ Xem trước dữ liệu tải lên", expanded=False):
-            st.dataframe(df.head(10), use_container_width=True)
-
-        # Model mới dùng 4 features
-        features = ['temperature', 'humidity', 'pressure', 'precipitation']
-        missing = [c for c in features if c not in df.columns]
-        if missing:
-            # Nếu thiếu precipitation thì tự điền 0
-            if missing == ['precipitation']:
-                df['precipitation'] = 0.0
-                st.warning("⚠️ Cột `precipitation` không có trong file — tự động điền giá trị 0.")
-            else:
-                st.error(f"❌ File thiếu các cột bắt buộc: {missing}")
-                st.stop()
+    if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", use_container_width=True, type="primary", key="btn_weather"):
+        with st.spinner("⏳ Đang tải dữ liệu thời tiết thực tế từ trạm khí tượng (Open-Meteo API)..."):
+            import urllib.request
+            import json
+            import datetime
+            from datetime import timedelta
             
-        if st.button("🚀 BẮT ĐẦU DỰ BÁO", use_container_width=True, type="primary", key="btn_weather"):
-            with st.spinner("Bộ AI đang xử lý mô phỏng..."):
-                data = df[features].values.astype(np.float32)
+            target_dt = datetime.datetime.combine(selected_date, selected_time)
+            start_dt = target_dt - timedelta(hours=48)
+            
+            start_str = start_dt.strftime('%Y-%m-%d')
+            end_str = (target_dt + timedelta(days=1)).strftime('%Y-%m-%d')
+            
+            # Tính số ngày từ hiện tại
+            days_diff = (today - selected_date).days
+            if days_diff <= 3:
+                url = "https://api.open-meteo.com/v1/forecast?latitude=18.3333&longitude=105.9000&past_days=5&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation&timezone=Asia%2FBangkok"
+            else:
+                url = f"https://archive-api.open-meteo.com/v1/archive?latitude=18.3333&longitude=105.9000&start_date={start_str}&end_date={end_str}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation&timezone=Asia%2FBangkok"
+                
+            try:
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response:
+                    data_api = json.loads(response.read().decode())
+                
+                hourly = data_api.get('hourly', {})
+                if not hourly:
+                    st.error("❌ Không thể lấy dữ liệu từ API cho ngày này.")
+                    st.stop()
+                    
+                df_all = pd.DataFrame({
+                    'time': hourly['time'],
+                    'temperature': hourly['temperature_2m'],
+                    'humidity': hourly['relative_humidity_2m'],
+                    'pressure': hourly['surface_pressure'],
+                    'precipitation': hourly['precipitation']
+                })
+                
+                # Cắt đúng 48 giờ trước target_dt
+                target_dt_str = target_dt.strftime('%Y-%m-%dT%H:00')
+                df_past = df_all[df_all['time'] <= target_dt_str]
+                
+                if len(df_past) >= 48:
+                    df = df_past.tail(48).reset_index(drop=True)
+                else:
+                    df = df_all.head(48).reset_index(drop=True) # fallback
+                
+                df = df.interpolate(method='linear').bfill().ffill()
+                
+                st.success(f"✅ Đã tải thành công 48 giờ dữ liệu tính đến {target_dt.strftime('%H:%M %d/%m/%Y')}!")
+                with st.expander("👁️ Xem trước dữ liệu tự động tải"):
+                    st.dataframe(df.head(), use_container_width=True)
+                    
+            except Exception as e:
+                st.error(f"❌ Lỗi tự động tải dữ liệu: {e}")
+                st.stop()
+                
+        # --- Bắt đầu dự báo ---
+        with st.spinner("🤖 Bộ AI L-GRU đang xử lý mô phỏng..."):
+            features = ['temperature', 'humidity', 'pressure', 'precipitation']
+            data = df[features].values.astype(np.float32)
                 data_scaled = scaler.transform(data)
                 
                 preds_scaled = predict_autoregressive(model, data_scaled, steps=forecast_hours, device=device)
@@ -394,32 +439,80 @@ def run_finance_app():
     
     forecast_days = st.sidebar.slider("Dự báo bao nhiêu ngày tới?", min_value=1, max_value=30, value=7)
     
-    st.markdown(f"### 📥 Tải lên dữ liệu test của {model_choice} (Định dạng CSV)")
-    uploaded_file = st.file_uploader("Chọn file CSV dữ liệu", type=["csv"], label_visibility="collapsed", key="finance_uploader")
+    st.markdown(f"### 🗓️ 1. Chọn ngày kết thúc dữ liệu cho {model_choice}")
+    st.info("💡 Hệ thống sẽ **tự động kết nối và tải chuỗi dữ liệu giao dịch 60 ngày** trước đó từ Internet.")
     
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-        if 'Date' not in df.columns or 'Close' not in df.columns:
-            st.error("Dữ liệu cần phải chứa cột 'Date' và 'Close'")
-            st.stop()
+    today = pd.Timestamp.now('Asia/Bangkok').date()
+    min_date = today - timedelta(days=365*5) # Lùi 5 năm
+    selected_date = st.date_input("Ngày kết thúc dữ liệu muốn phân tích:", value=today, min_value=min_date, max_value=today)
+    
+    if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", width='stretch', type="primary", key="btn_finance"):
+        with st.spinner(f"⏳ Đang kết nối thị trường tài chính để tải dữ liệu {model_choice}..."):
+            import yfinance as yf
+            from datetime import timedelta
             
-        with st.expander("👁️ Xem trước dữ liệu", expanded=False):
-            st.dataframe(df.tail(10), width='stretch')
+            ticker_map = {
+                "Bitcoin": "BTC-USD",
+                "SP500": "^GSPC",
+                "Tesla": "TSLA"
+            }
+            ticker = ticker_map.get(model_choice)
             
+            try:
+                # Lấy số ngày đủ nhiều để bù ngày nghỉ lễ, cuối tuần
+                start_date = selected_date - timedelta(days=100)
+                st_str = start_date.strftime('%Y-%m-%d')
+                en_str = (selected_date + timedelta(days=1)).strftime('%Y-%m-%d')
+                
+                df_yf = yf.download(ticker, start=st_str, end=en_str, progress=False)
+                
+                if df_yf.empty:
+                    st.error(f"❌ Không có dữ liệu cho {model_choice} trong khoảng thời gian này.")
+                    st.stop()
+                    
+                df = df_yf.reset_index()
+                
+                # Flatten multi-index nếu có
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                    
+                if 'Date' not in df.columns:
+                    for col in ['Datetime', 'index', 'level_0']:
+                        if col in df.columns:
+                            df.rename(columns={col: 'Date'}, inplace=True)
+                            break
+                            
+                df = df[['Date', 'Close']]
+                df.dropna(inplace=True)
+                
+                # Cắt 60 phiên cuối
+                seq_len = 60
+                if len(df) >= seq_len:
+                    df = df.tail(seq_len).reset_index(drop=True)
+                else:
+                    df = df.reset_index(drop=True)
+                
+                st.success(f"✅ Đã tải thành công {len(df)} phiên giao dịch gần nhất!")
+                with st.expander("👁️ Xem trước dữ liệu tự động tải"):
+                    st.dataframe(df.tail(), use_container_width=True)
+                    
+            except Exception as e:
+                st.error(f"❌ Lỗi tải dữ liệu tài chính: {e}")
+                st.stop()
+                
         model_path = model_files[model_choice]
         model_data = load_finance_model(model_path)
         
         if model_data[0] is None:
-            st.error(f"❌ Không tìm thấy trọng số tại {model_path}")
+            st.error(f"❌ Không tìm thấy file model AI tại {model_path}")
             st.stop()
             
         model, device = model_data
         scaler = load_finance_scaler(df)
 
-        if st.button("🚀 BẮT ĐẦU DỰ BÁO", width='stretch', type="primary", key="btn_finance"):
-            with st.spinner("AI đang phân tích chuỗi dữ liệu..."):
-                seq_len = min(60, len(df))
-                recent_data = df['Close'].values[-seq_len:].reshape(-1, 1)
+        with st.spinner("🤖 AI L-GRU đang phân tích chuỗi dữ liệu..."):
+            seq_len_actual = min(60, len(df))
+            recent_data = df['Close'].values[-seq_len_actual:].reshape(-1, 1)
                 
                 data_scaled = scaler.transform(recent_data)
                 preds_scaled = predict_autoregressive(model, data_scaled, steps=forecast_days, device=device)

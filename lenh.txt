@@ -1,2 +1,0 @@
-C:/Users/11a10/AppData/Local/Microsoft/WindowsApps/python3.11.exe -m streamlit run app.py
-C:/Users/11a10/AppData/Local/Microsoft/WindowsApps/python3.11.exe -m streamlit run app2.py

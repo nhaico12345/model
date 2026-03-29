@@ -298,7 +298,6 @@ def run_weather_app():
             import urllib.request
             import json
             import datetime
-            from datetime import timedelta
             
             target_dt = datetime.datetime.combine(selected_date, selected_time)
             start_dt = target_dt - timedelta(hours=48)
@@ -449,7 +448,6 @@ def run_finance_app():
     if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", width='stretch', type="primary", key="btn_finance"):
         with st.spinner(f"⏳ Đang kết nối thị trường tài chính để tải dữ liệu {model_choice}..."):
             import yfinance as yf
-            from datetime import timedelta
             
             ticker_map = {
                 "Bitcoin": "BTC-USD",

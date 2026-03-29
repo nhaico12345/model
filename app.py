@@ -175,18 +175,53 @@ class WeatherLGRUModel(nn.Module):
                 x_t = h_t
         return self.output_layer(h_t)
 
-def predict_autoregressive(model, input_seq, steps, device):
-    current_seq = torch.FloatTensor(input_seq).unsqueeze(0).to(device)
-    predictions = []
+def predict_autoregressive(model, input_seq, steps, device, scaler, start_hour):
+    current_seq_scaled = torch.FloatTensor(input_seq).unsqueeze(0).to(device)
+    predictions_unscaled = []
     
     with torch.no_grad():
-        for _ in range(steps):
-            pred = model(current_seq)
-            predictions.append(pred.cpu().numpy()[0])
-            pred_unsqueeze = pred.unsqueeze(1)
-            current_seq = torch.cat([current_seq[:, 1:, :], pred_unsqueeze], dim=1)
+        for step in range(steps):
+            pred_scaled = model(current_seq_scaled) # shape: (1, 4)
+            # Inverse transform immediately to apply physics/heuristics
+            pred_unscaled = scaler.inverse_transform(pred_scaled.cpu().numpy())[0]
             
-    return np.array(predictions)
+            # 1. Lượng mưa (Precipitation) không được âm (clip >= 0)
+            pred_unscaled[3] = np.maximum(0.0, pred_unscaled[3])
+            
+            # 2. Xử lý giới hạn vật lý để tránh drift vô hạn
+            pred_unscaled[1] = np.clip(pred_unscaled[1], 10.0, 100.0)    # Độ ẩm %
+            pred_unscaled[2] = np.clip(pred_unscaled[2], 950.0, 1050.0)  # Áp suất hPa
+            pred_unscaled[0] = np.clip(pred_unscaled[0], 0.0, 50.0)      # Nhiệt độ C
+            
+            # 3. Chống Tích lũy sai số & Thiếu biến thời gian bằng Heuristics (Chu kỳ Ngày/Đêm)
+            # Biến tàng hình: Chu kỳ nhiệt độ trong ngày (nóng nhất 14h, lạnh nhất 4h sáng)
+            current_hour = (start_hour + step + 1) % 24
+            
+            if step > 0:
+                prev_temp_unscaled = predictions_unscaled[-1][0]
+                pred_delta = pred_unscaled[0] - prev_temp_unscaled
+                
+                # Hàm đạo hàm tương đối của sóng nhiệt độ ngày (tăng nhanh nhất lúc 9h-10h, giảm nhanh nhất lúc 21h)
+                # Dùng cosine xoay pha để diễn tả tốc độ thay đổi nhiệt độ mong đợi mỗi giờ
+                ideal_delta = np.cos((current_hour - 10) * np.pi / 12) * 1.5
+                
+                # Blend 20% xu hướng vật lý tự nhiên vào dự báo thuần để khử cộng dồn sai số
+                blended_delta = 0.8 * pred_delta + 0.2 * ideal_delta
+                
+                # Giới hạn không cho nhiệt độ giật cục quá 2.5 độ/giờ
+                blended_delta = np.clip(blended_delta, -2.5, 2.5)
+                
+                pred_unscaled[0] = prev_temp_unscaled + blended_delta
+            
+            # Lưu lại predict vật lý
+            predictions_unscaled.append(pred_unscaled.copy())
+            
+            # Transform lại thành giá trị scaled [0,1] để nuôi vào mô hình RNN
+            pred_rescaled = scaler.transform(pred_unscaled.reshape(1, -1))
+            pred_tensor = torch.FloatTensor(pred_rescaled).to(device)
+            current_seq_scaled = torch.cat([current_seq_scaled[:, 1:, :], pred_tensor.unsqueeze(0)], dim=1)
+            
+    return np.array(predictions_unscaled)
 
 # -------------------------------------------------------------
 # 2. HÀM XỬ LÝ CACHE MODEL VÀ SCALER (TÁCH BIỆT CHO 2 PHÂN HỆ)
@@ -195,7 +230,7 @@ def predict_autoregressive(model, input_seq, steps, device):
 def load_weather_model_and_scaler():
     """Load model thời tiết Hà Tĩnh mới (4 features) và fit scaler từ dữ liệu training."""
     from sklearn.preprocessing import MinMaxScaler
-    model_path = "best_weather_model.pth"
+    model_path = "latest_checkpoint.pth"
     if not os.path.exists(model_path):
         return None, None, None
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -355,13 +390,19 @@ def run_weather_app():
             data = df[features].values.astype(np.float32)
             data_scaled = scaler.transform(data)
             
-            preds_scaled = predict_autoregressive(model, data_scaled, steps=forecast_hours, device=device)
-            preds = scaler.inverse_transform(preds_scaled)
-            
             try:
                 last_time = pd.to_datetime(df['time'].iloc[-1])
             except Exception:
                 last_time = pd.Timestamp.now()
+                
+            preds = predict_autoregressive(
+                model=model, 
+                input_seq=data_scaled, 
+                steps=forecast_hours, 
+                device=device,
+                scaler=scaler,
+                start_hour=last_time.hour
+            )
                 
             future_times = [last_time + timedelta(hours=i+1) for i in range(forecast_hours)]
             past_times = pd.to_datetime(df['time'].iloc[-48:]).tolist() if 'time' in df.columns else [last_time - timedelta(hours=48-i) for i in range(min(48, len(df)))]

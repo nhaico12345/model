@@ -179,7 +179,6 @@ def predict_autoregressive(model, input_seq, steps, device, damping=0.92):
     """Dự báo autoregressive với kỹ thuật damping để giảm tích lũy sai số.
     
     damping: hệ số co rút phần thay đổi của mỗi bước dự báo về phía giá trị ban đầu.
-    Giá trị 0.92 nghĩa là mỗi bước, độ lệch so với giá trị gốc co lại 8%.
     """
     current_seq = torch.FloatTensor(input_seq).unsqueeze(0).to(device)
     predictions = []
@@ -192,9 +191,13 @@ def predict_autoregressive(model, input_seq, steps, device, damping=0.92):
             pred_np = pred.cpu().numpy()[0]
             
             # Áp dụng damping: kéo dự báo về phía anchor theo tỷ lệ
-            # Hiệu ứng: sau nhiều bước, dự báo không trôi dạt quá xa
+            # Chỉ áp dụng damping cho các biến liên tục, không áp dụng cho lượng mưa (index 3)
             damping_factor = damping ** step
-            pred_dampened = anchor + (pred_np - anchor) * (1.0 + damping_factor * 0.1)
+            pred_dampened = pred_np.copy()
+            if len(pred_np) == 4:
+                pred_dampened[:3] = anchor[:3] + (pred_np[:3] - anchor[:3]) * damping_factor
+            else:
+                pred_dampened = anchor + (pred_np - anchor) * damping_factor
             
             predictions.append(pred_dampened)
             
@@ -256,12 +259,19 @@ def load_weather_model_and_scaler():
     return model, device, scaler
 
 @st.cache_resource
-def load_finance_scaler(df):
+def load_finance_scaler(ticker):
     # CHUYỂN LỆNH IMPORT VÀO ĐÂY ĐỂ TRÁNH LỖI ATEXIT CỦA JOBLIB
     from sklearn.preprocessing import MinMaxScaler
+    import yfinance as yf
+    
+    # Load khoảng thời gian dài (ví dụ "max") để fit Scaler
+    # nhằm tái tạo đúng không gian dữ liệu như lúc train
+    df_train = yf.download(ticker, period="max", progress=False)
+    if isinstance(df_train.columns, pd.MultiIndex):
+        df_train.columns = df_train.columns.get_level_values(0)
     
     scaler = MinMaxScaler()
-    scaler.fit(df[['Close']].values)
+    scaler.fit(df_train[['Close']].values)
     return scaler
 
 @st.cache_resource
@@ -396,10 +406,7 @@ def run_weather_app():
             # 2. CLIP ĐỘ ẨM vào dải [0, 100]%
             preds[:, 1] = np.clip(preds[:, 1], 0, 100)
             
-            # 3. ĐIỀU CHỈNH BIÊN ĐỘ NGÀY/ĐÊM (Chu kỳ thời gian)
-            # Model L-GRU được huấn luyện với 4 features không có time encoding.
-            # Để bổ sung thông tin chu kỳ ngày/đêm, ta dùng hậu xử lý:
-            # Thêm bias nhiệt độ sin theo giờ trong ngày (biên độ ~2°C)
+            # 3. CHUẨN BỊ THỜI GIAN TƯƠNG LAI
             try:
                 last_time = pd.to_datetime(df['time'].iloc[-1])
             except Exception:
@@ -407,16 +414,8 @@ def run_weather_app():
                 
             future_times = [last_time + timedelta(hours=i+1) for i in range(forecast_hours)]
             
-            # Bias ngày/đêm: đỉnh nóng nhất ~14h, lạnh nhất ~4h sáng
-            # Dùng cosine để mô phỏng chu kỳ, biên độ 1.5°C để không override model
-            DIURNAL_AMPLITUDE = 1.5  # Độ C
-            for i, ft in enumerate(future_times):
-                hour = ft.hour
-                # cos(0)=1 tại 14h (đỉnh), cos(π)=-1 tại 2h sáng
-                # phase: 14h = 0 rad
-                phase = 2 * np.pi * (hour - 14) / 24
-                diurnal_bias = DIURNAL_AMPLITUDE * np.cos(phase)
-                preds[i, 0] += diurnal_bias
+            # Đã loại bỏ việc cộng diurnal_bias (Double-counting) vì mô hình L-GRU 
+            # đã tự học chu kỳ ngày/đêm từ 48h lịch sử.
             
             # 4. Clip nhiệt độ vào dải hợp lý cho Hà Tĩnh
             preds[:, 0] = np.clip(preds[:, 0], 5.0, 44.0)
@@ -560,7 +559,9 @@ def run_finance_app():
                             break
                             
                 df = df[['Date', 'Close']]
-                df.dropna(inplace=True)
+                # Sử dụng ffill/bfill để giữ tính liên tục của time-series
+                df.ffill(inplace=True)
+                df.bfill(inplace=True)
                 
                 # Cắt 60 phiên cuối
                 seq_len = 60
@@ -585,7 +586,7 @@ def run_finance_app():
             st.stop()
             
         model, device = model_data
-        scaler = load_finance_scaler(df)
+        scaler = load_finance_scaler(ticker)
 
         with st.spinner("🤖 AI L-GRU đang phân tích chuỗi dữ liệu..."):
             seq_len_actual = min(60, len(df))

@@ -280,6 +280,7 @@ def predict_autoregressive_weather(
     # Timestamp dự báo bắt đầu từ step tiếp theo
     current_ts = start_timestamp if start_timestamp is not None else pd.Timestamp.now()
 
+    model.eval()  # Đảm bảo model ở eval mode trong suốt inference
     with torch.no_grad():
         for step in range(steps):
             pred = model(current_seq)           # (1, 4)
@@ -299,15 +300,19 @@ def predict_autoregressive_weather(
 
             predictions_weather.append(pred_scaled.copy())
 
-            # Tạo time features cho timestamp TIẾP THEO
-            next_ts     = current_ts + pd.Timedelta(hours=1)
-            time_feat   = make_time_features(next_ts)                  # (6,)
+            # FIX: Tạo time features cho CHÍNH timestamp hiện tại (current_ts),
+            # KHÔNG phải next_ts. Row mới thêm vào chuỗi phải khớp
+            # [weather dự báo tại t] với [time features tại t].
+            # Lỗi cũ: dùng next_ts → time features lệch +1 giờ so với weather features.
+            time_feat   = make_time_features(current_ts)               # (6,) — khớp với pred_scaled
             next_row    = np.concatenate([pred_scaled, time_feat])     # (10,)
             next_tensor = torch.FloatTensor(next_row).unsqueeze(0).unsqueeze(0).to(device)  # (1,1,10)
 
             # Trượt chuỗi: bỏ bước đầu, thêm bước mới
             current_seq = torch.cat([current_seq[:, 1:, :], next_tensor], dim=1)
-            current_ts  = next_ts
+
+            # Tăng timestamp SAU khi đã tạo row — không phải trước
+            current_ts  = current_ts + pd.Timedelta(hours=1)
 
     return np.array(predictions_weather)  # (steps, 4) — scaled
 
@@ -385,22 +390,36 @@ def load_weather_model_and_scaler():
     features = ['temperature', 'humidity', 'pressure', 'precipitation']
     train_path = "weather_trainn.csv"
 
+    # Dải hợp lý cho Hà Tĩnh — dùng khi không đọc được CSV
+    # humidity_min = 0.0 (an toàn hơn 20.0 vì mùa khô Hà Tĩnh có thể xuống rất thấp)
+    _fallback_min = np.array([5.0,  0.0,   960.0,  0.0])
+    _fallback_max = np.array([43.0, 100.0, 1045.0, 300.0])
+
     if os.path.exists(train_path):
-        # Đọc theo chunks để tiết kiệm RAM (file > 700k dòng)
-        data_min = None
-        data_max = None
-        for chunk in pd.read_csv(train_path, usecols=features, chunksize=50000):
-            chunk['precipitation'] = chunk['precipitation'].clip(lower=0)
-            c_min = chunk[features].min().values
-            c_max = chunk[features].max().values
-            data_min = c_min if data_min is None else np.minimum(data_min, c_min)
-            data_max = c_max if data_max is None else np.maximum(data_max, c_max)
-        scaler.fit(np.vstack([data_min, data_max]))
+        try:
+            # Đọc theo chunks để tiết kiệm RAM (file > 700k dòng)
+            # File CSV phải có cột: temperature, humidity, pressure, precipitation
+            data_min = None
+            data_max = None
+            for chunk in pd.read_csv(train_path, usecols=features, chunksize=50000):
+                chunk['precipitation'] = chunk['precipitation'].clip(lower=0)
+                c_min = chunk[features].min().values
+                c_max = chunk[features].max().values
+                data_min = c_min if data_min is None else np.minimum(data_min, c_min)
+                data_max = c_max if data_max is None else np.maximum(data_max, c_max)
+            scaler.fit(np.vstack([data_min, data_max]))
+        except (ValueError, KeyError) as e:
+            # Xảy ra khi CSV chỉ có cột Scaled_* mà không có cột raw
+            # → dùng fallback hợp lý cho vùng Hà Tĩnh
+            import warnings
+            warnings.warn(
+                f"[Scaler] Không đọc được cột raw từ {train_path} ({e}). "
+                "Dùng dải hợp lý cho Hà Tĩnh làm fallback."
+            )
+            scaler.fit(np.vstack([_fallback_min, _fallback_max]))
     else:
         # Fallback: dải hợp lý cho Hà Tĩnh khi không có file training
-        data_min = np.array([5.0,  20.0,  960.0,  0.0])
-        data_max = np.array([43.0, 100.0, 1045.0, 300.0])
-        scaler.fit(np.vstack([data_min, data_max]))
+        scaler.fit(np.vstack([_fallback_min, _fallback_max]))
 
     return model, device, scaler, seq_len
 
@@ -495,7 +514,8 @@ def run_weather_app():
             import datetime
 
             target_dt = datetime.datetime.combine(selected_date, selected_time)
-            # Model mới dùng seq_len=96 (4 ngày), tải thêm buffer để đủ
+            # Tải đủ dữ liệu = SEQ_LEN (96h) + buffer 24h để bù độ trễ dữ liệu API
+            # Tổng = 120h → sau khi lọc df_past sẽ còn ≥ SEQ_LEN hàng
             hours_needed = SEQ_LEN + 24  # đủ dữ liệu + buffer
             start_dt = target_dt - timedelta(hours=hours_needed)
 
@@ -505,9 +525,11 @@ def run_weather_app():
             # Tính số ngày từ hiện tại
             days_diff = (today - selected_date).days
             if days_diff <= 3:
+                # API forecast: past_days=7 + forecast_days=1 để bao phủ target_dt
+                # Thêm &forecast_days=1 để API trả về cả bản ghi giờ gần nhất hôm nay
                 url = ("https://api.open-meteo.com/v1/forecast?"
                        "latitude=18.3333&longitude=105.9000"
-                       f"&past_days=7"
+                       f"&past_days=7&forecast_days=1"
                        "&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation"
                        "&timezone=Asia%2FBangkok")
             else:

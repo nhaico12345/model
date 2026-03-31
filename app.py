@@ -369,7 +369,9 @@ def run_weather_app():
         min_date = today - timedelta(days=365*2)  # Cho phép lùi 2 năm
         selected_date = st.date_input("Ngày dự báo:", value=today, min_value=min_date, max_value=today)
     with col_time:
-        selected_time = st.time_input("Giờ dự báo:", value=pd.Timestamp.now('Asia/Bangkok').time())
+        if "default_time" not in st.session_state:
+            st.session_state["default_time"] = pd.Timestamp.now('Asia/Bangkok').replace(second=0, microsecond=0).time()
+        selected_time = st.time_input("Giờ dự báo:", value=st.session_state["default_time"])
 
     if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", use_container_width=True, type="primary", key="btn_weather"):
         with st.spinner("⏳ Đang tải dữ liệu thời tiết thực tế từ trạm khí tượng (Open-Meteo API)..."):

@@ -179,41 +179,36 @@ class WeatherLGRUModel(nn.Module):
 # -----------------------------------------------------------------------
 # HÀM DỰ BÁO AUTOREGRESSIVE
 # -----------------------------------------------------------------------
-def predict_autoregressive_weather(model, input_seq, steps, device, smoothing_alpha=0.35):
+def predict_autoregressive_weather(model, input_seq, steps, device, scaler=None):
     """Dự báo autoregressive nhiều bước cho thời tiết.
-
-    Áp dụng Exponential Moving Average (EMA) làm mượt giữa kết quả dự báo
-    liên tiếp để giảm tích lũy sai số, thay vì kéo cứng về một anchor cố định.
-    
-    - smoothing_alpha: trọng số của dự báo mới trong EMA.
-      0.0 = giữ nguyên bước trước (freeze), 1.0 = không smooth (raw prediction).
-      Giá trị 0.35 tương đương span ~5 bước.
-    - Lượng mưa (index 3) không smooth vì là biến rời rạc không liên tục.
+    Loại bỏ tính năng làm mượt EMA để giữ chu kỳ thời tiết tự nhiên.
+    Inverse clip để không feed data rác vào mô hình ở các bước t+1.
     """
     current_seq = torch.FloatTensor(input_seq).unsqueeze(0).to(device)
     predictions = []
-    prev_pred = None  # Dự báo bước trước (dùng cho EMA)
 
     with torch.no_grad():
         for step in range(steps):
             pred = model(current_seq)
             pred_np = pred.cpu().numpy()[0]  # shape: (4,)
 
-            if prev_pred is None:
-                # Bước đầu tiên: không smooth, giữ nguyên output model
-                smoothed = pred_np.copy()
+            if scaler is not None:
+                # Lý tưởng nhất: scale ngược lại, clip giá trị vật lý, roi scale đi, roi moi feed
+                pred_real = scaler.inverse_transform(pred_np.reshape(1, -1))[0]
+                
+                # Clip lượng mưa không âm và các biến khác trong khoảng hợp lý
+                pred_real[3] = np.clip(pred_real[3], 0, None)
+                pred_real[1] = np.clip(pred_real[1], 0, 100)
+                pred_real[0] = np.clip(pred_real[0], 5.0, 44.0)
+                pred_real[2] = np.clip(pred_real[2], 960.0, 1050.0)
+                
+                pred_np_clipped = scaler.transform(pred_real.reshape(1, -1))[0]
             else:
-                # Áp dụng EMA chỉ trên biến liên tục (temperature, humidity, pressure)
-                smoothed = pred_np.copy()
-                smoothed[:3] = smoothing_alpha * pred_np[:3] + (1 - smoothing_alpha) * prev_pred[:3]
-                # Lượng mưa (index 3): giữ nguyên dự báo của model, clip âm sau
-                smoothed[3] = pred_np[3]
+                pred_np_clipped = pred_np
 
-            predictions.append(smoothed)
-            prev_pred = smoothed
+            predictions.append(pred_np_clipped.copy())
 
-            # Feed dự báo đã làm mượt trở lại chuỗi đầu vào
-            pred_tensor = torch.FloatTensor(smoothed).unsqueeze(0).unsqueeze(0).to(device)
+            pred_tensor = torch.FloatTensor(pred_np_clipped).unsqueeze(0).unsqueeze(0).to(device)
             current_seq = torch.cat([current_seq[:, 1:, :], pred_tensor], dim=1)
 
     return np.array(predictions)
@@ -222,31 +217,20 @@ def predict_autoregressive_weather(model, input_seq, steps, device, smoothing_al
 def predict_autoregressive_finance(model, input_seq, steps, device):
     """Dự báo autoregressive nhiều bước cho tài chính.
 
-    KHÔNG áp dụng damping hay anchor kéo ngược vì thị trường tài chính
-    có xu hướng (trend) rõ ràng. Kéo về anchor cố định sẽ làm flat-line
-    dự báo dài hạn và mất thông tin xu hướng quan trọng.
-    
-    Áp dụng EMA nhẹ (alpha=0.7) để giảm nhiễu nhưng vẫn theo sát trend.
+    Loại bỏ tính năng làm mượt (EMA) để giữ nguyên mức độ biến động (volatility)
+    đặc trưng của thị trường tài chính.
     """
     current_seq = torch.FloatTensor(input_seq).unsqueeze(0).to(device)
     predictions = []
-    prev_pred = None
-    alpha = 0.7  # Trọng số cao hơn cho dự báo mới (theo trend)
 
     with torch.no_grad():
         for step in range(steps):
             pred = model(current_seq)
             pred_np = pred.cpu().numpy()[0]  # shape: (1,)
 
-            if prev_pred is None:
-                smoothed = pred_np.copy()
-            else:
-                smoothed = alpha * pred_np + (1 - alpha) * prev_pred
+            predictions.append(pred_np.copy())
 
-            predictions.append(smoothed)
-            prev_pred = smoothed
-
-            pred_tensor = torch.FloatTensor(smoothed).unsqueeze(0).unsqueeze(0).to(device)
+            pred_tensor = torch.FloatTensor(pred_np).unsqueeze(0).unsqueeze(0).to(device)
             current_seq = torch.cat([current_seq[:, 1:, :], pred_tensor], dim=1)
 
     return np.array(predictions)
@@ -433,9 +417,10 @@ def run_weather_app():
                 else:
                     df = df_all.head(48).reset_index(drop=True)  # fallback
 
-                # FIX LỖI 4: Chỉ interpolate/fill cột số, không kéo cột 'time' vào
-                num_cols = ['temperature', 'humidity', 'pressure', 'precipitation']
-                df[num_cols] = df[num_cols].interpolate(method='linear').bfill().ffill()
+                # Tách riêng xử lý missing data theo bản chất thời tiết
+                # Lượng mưa điền 0 vì là biến rời rạc, tránh nội suy "mưa rỉ rả"
+                df[['temperature', 'humidity', 'pressure']] = df[['temperature', 'humidity', 'pressure']].interpolate(method='linear').bfill().ffill()
+                df['precipitation'] = df['precipitation'].fillna(0)
 
                 st.success(f"✅ Đã tải thành công 48 giờ dữ liệu tính đến {target_dt.strftime('%H:%M %d/%m/%Y')}!")
                 with st.expander("👁️ Xem trước dữ liệu tự động tải"):
@@ -454,9 +439,9 @@ def run_weather_app():
             data[:, 3] = np.clip(data[:, 3], 0, None)  # Lượng mưa không âm
             data_scaled = scaler.transform(data)
 
-            # Dự báo autoregressive với EMA smoothing chống tích lũy sai số
+            # Dự báo autoregressive truyền kèm scaler để inverse-clip trong vòng lặp
             preds_scaled = predict_autoregressive_weather(
-                model, data_scaled, steps=forecast_hours, device=device, smoothing_alpha=0.35
+                model, data_scaled, steps=forecast_hours, device=device, scaler=scaler
             )
             preds = scaler.inverse_transform(preds_scaled)
 

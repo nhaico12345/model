@@ -83,135 +83,233 @@ class CustomAIModel(nn.Module):
             out = h_t
         return self.fc(out)
 
-# --- Kiến trúc L-GRU MỚI (dùng cho model thời tiết Hà Tĩnh 1940-2026) ---
-class WeatherLGRUCell(nn.Module):
-    """Cell L-GRU mới: tách riêng W_rh (hidden) và W_rx (input) cho từng cổng."""
-    def __init__(self, input_size, hidden_size):
+# ─────────────────────────────────────────────────────────────────────────────
+# KIẾN TRÚC MODEL MỚI — Custom GRU-LSTM Hybrid + TemporalAttention
+# Khớp hoàn toàn với train_model_weather.py (best_weather_model(release).pth)
+# input_size=10 (4 thời tiết + 6 time features), hidden=256, layers=3, seq_len=96
+# ─────────────────────────────────────────────────────────────────────────────
+class MishActivation(nn.Module):
+    """Hàm kích hoạt Mish: f(x) = x * tanh(softplus(x))."""
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x * torch.tanh(F.softplus(x))
+
+
+class CustomRNNCell(nn.Module):
+    """
+    Custom RNN Cell — lai GRU–LSTM với LayerNorm và Mish.
+    Khớp với state_dict keys: rnn.cells.N.W_rh, W_rx, W_Cr, ln_r, W_c, W_Cz, W_zh, W_zx,
+    ln_z, W_Co, W_oh, W_ox, ln_o
+    """
+    def __init__(self, input_size: int, hidden_size: int):
         super().__init__()
-        self.hidden_size = hidden_size
+        H, I = hidden_size, input_size
 
-        # Cổng Reset
-        self.W_Cr = nn.Parameter(torch.Tensor(hidden_size))
-        self.W_rh = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.W_rx = nn.Linear(input_size, hidden_size)
-        self.ln_r = nn.LayerNorm(hidden_size)
+        # Cổng Reset (r)
+        self.W_rh = nn.Linear(H, H, bias=False)
+        self.W_rx = nn.Linear(I, H, bias=True)
+        self.W_Cr = nn.Parameter(torch.Tensor(H))
+        self.ln_r = nn.LayerNorm(H)
 
-        # Candidate
-        self.W_c = nn.Linear(input_size + hidden_size, hidden_size)
+        # Trạng thái ứng viên (C~)
+        self.W_c  = nn.Linear(H + I, H, bias=True)
+        self.mish = MishActivation()
 
-        # Cổng Update
-        self.W_Cz = nn.Parameter(torch.Tensor(hidden_size))
-        self.W_zh = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.W_zx = nn.Linear(input_size, hidden_size)
-        self.ln_z = nn.LayerNorm(hidden_size)
+        # Cổng Update (z)
+        self.W_zh = nn.Linear(H, H, bias=False)
+        self.W_zx = nn.Linear(I, H, bias=True)
+        self.W_Cz = nn.Parameter(torch.Tensor(H))
+        self.ln_z = nn.LayerNorm(H)
 
-        # Cổng Output
-        self.W_Co = nn.Parameter(torch.Tensor(hidden_size))
-        self.W_oh = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.W_ox = nn.Linear(input_size, hidden_size)
-        self.ln_o = nn.LayerNorm(hidden_size)
+        # Cổng Output (o)
+        self.W_oh = nn.Linear(H, H, bias=False)
+        self.W_ox = nn.Linear(I, H, bias=True)
+        self.W_Co = nn.Parameter(torch.Tensor(H))
+        self.ln_o = nn.LayerNorm(H)
 
-        self.mish = Mish()
-
-    def forward(self, x_t, states):
-        h_prev, c_prev = states
-
-        # Reset gate
-        r_t = torch.sigmoid(self.ln_r(self.W_rh(h_prev) + self.W_rx(x_t) + self.W_Cr * c_prev))
-
-        # Candidate
-        r_hx = torch.cat([x_t, r_t * h_prev], dim=1)
-        c_tilde = self.mish(self.W_c(r_hx))
-
-        # Update gate
-        z_t = torch.sigmoid(self.ln_z(self.W_zh(h_prev) + self.W_zx(x_t) + self.W_Cz * c_prev))
-        c_t = z_t * c_prev + (1 - z_t) * c_tilde
-
-        # Output gate
-        o_t = torch.sigmoid(self.ln_o(self.W_oh(h_prev) + self.W_ox(x_t) + self.W_Co * c_t))
-        h_t = o_t * torch.tanh(c_t)
-
+    def forward(self, x: torch.Tensor, h: torch.Tensor, c: torch.Tensor):
+        r_t     = torch.sigmoid(self.ln_r(self.W_rh(h) + self.W_rx(x) + self.W_Cr * c))
+        c_tilde = self.mish(self.W_c(torch.cat([r_t * h, x], dim=-1)))
+        z_t     = torch.sigmoid(self.ln_z(self.W_zh(h) + self.W_zx(x) + self.W_Cz * c))
+        c_t     = z_t * c + (1.0 - z_t) * c_tilde
+        o_t     = torch.sigmoid(self.ln_o(self.W_oh(h) + self.W_ox(x) + self.W_Co * c_t))
+        h_t     = o_t * torch.tanh(c_t)
         return h_t, c_t
 
-class _WeatherRNNCells(nn.Module):
-    """Wrapper chứa 'cells' ModuleList để key names khớp với 'rnn.cells.*' trong checkpoint."""
-    def __init__(self):
-        super().__init__()
-        self.cells = nn.ModuleList()
 
-class WeatherLGRUModel(nn.Module):
-    """Model L-GRU mới cho dự báo thời tiết Hà Tĩnh (4 features in/out).
-    Kiến trúc khớp đúng với state dict keys: rnn.cells.0.*, rnn.cells.1.*, output_layer.*
-    """
-    def __init__(self, input_size=4, hidden_size=128, output_size=4, num_layers=2):
+class CustomRNN(nn.Module):
+    """Nhiều lớp CustomRNNCell chồng nhau với Dropout giữa các lớp."""
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int, dropout: float = 0.0):
         super().__init__()
         self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        # Dùng _WeatherRNNCells để tạo key 'rnn.cells.*' khớp với checkpoint
-        self.rnn = _WeatherRNNCells()
-        for i in range(num_layers):
-            in_sz = input_size if i == 0 else hidden_size
-            self.rnn.cells.append(WeatherLGRUCell(in_sz, hidden_size))
-        self.output_layer = nn.Sequential(
-            nn.Linear(hidden_size, 64),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(64, output_size)
+        self.num_layers  = num_layers
+        self.cells = nn.ModuleList([
+            CustomRNNCell(input_size if i == 0 else hidden_size, hidden_size)
+            for i in range(num_layers)
+        ])
+        self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+
+    def forward(self, x: torch.Tensor, h_init=None, c_init=None):
+        batch_size = x.size(0)
+        device     = x.device
+        if h_init is None:
+            h_init = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=device)
+        if c_init is None:
+            c_init = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=device)
+
+        h_list = list(h_init.unbind(0))
+        c_list = list(c_init.unbind(0))
+        outputs = []
+        for t in range(x.size(1)):
+            x_t = x[:, t, :]
+            for layer_idx, cell in enumerate(self.cells):
+                h_t, c_t = cell(x_t, h_list[layer_idx], c_list[layer_idx])
+                h_list[layer_idx] = h_t
+                c_list[layer_idx] = c_t
+                x_t = self.dropout(h_t) if layer_idx < self.num_layers - 1 else h_t
+            outputs.append(h_t)
+        output = torch.stack(outputs, dim=1)   # (batch, seq_len, hidden)
+        h_n    = torch.stack(h_list, dim=0)
+        c_n    = torch.stack(c_list, dim=0)
+        return output, (h_n, c_n)
+
+
+class TemporalAttention(nn.Module):
+    """Temporal Attention — tổng hợp thông tin thông minh từ toàn bộ chuỗi."""
+    def __init__(self, hidden_size: int):
+        super().__init__()
+        self.attn_layer = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size // 4),
+            nn.Tanh(),
+            nn.Linear(hidden_size // 4, 1),
         )
 
-    def forward(self, x):
-        batch_size, seq_len, _ = x.size()
-        states = [
-            (torch.zeros(batch_size, self.hidden_size).to(x.device),
-             torch.zeros(batch_size, self.hidden_size).to(x.device))
-            for _ in range(self.num_layers)
-        ]
-        h_t = None
-        for t in range(seq_len):
-            x_t = x[:, t, :]
-            for i, cell in enumerate(self.rnn.cells):
-                h_t, c_t = cell(x_t, states[i])
-                states[i] = (h_t, c_t)
-                x_t = h_t
-        return self.output_layer(h_t)
+    def forward(self, rnn_out: torch.Tensor) -> torch.Tensor:
+        scores  = self.attn_layer(rnn_out).squeeze(-1)      # (batch, seq_len)
+        weights = torch.softmax(scores, dim=-1)              # (batch, seq_len)
+        context = (rnn_out * weights.unsqueeze(-1)).sum(dim=1)  # (batch, hidden)
+        return context
 
 
-# -----------------------------------------------------------------------
-# HÀM DỰ BÁO AUTOREGRESSIVE
-# -----------------------------------------------------------------------
-def predict_autoregressive_weather(model, input_seq, steps, device, scaler=None):
-    """Dự báo autoregressive nhiều bước cho thời tiết.
-    Loại bỏ tính năng làm mượt EMA để giữ chu kỳ thời tiết tự nhiên.
-    Inverse clip để không feed data rác vào mô hình ở các bước t+1.
+class WeatherForecastModel(nn.Module):
     """
-    current_seq = torch.FloatTensor(input_seq).unsqueeze(0).to(device)
-    predictions = []
+    Model dự báo thời tiết mới:
+        Input (batch, seq_len=96, input_size=10)
+          → CustomRNN (3 lớp, hidden=256)
+          → TemporalAttention
+          → Dropout → MLP → Output (batch, 4)
+    Khớp hoàn toàn với checkpoint best_weather_model(release).pth
+    """
+    def __init__(self, input_size: int = 10, hidden_size: int = 256,
+                 num_layers: int = 3, output_size: int = 4, dropout: float = 0.25):
+        super().__init__()
+        self.rnn       = CustomRNN(input_size, hidden_size, num_layers, dropout)
+        self.attention = TemporalAttention(hidden_size)
+        self.dropout   = nn.Dropout(dropout)
+        self.output_layer = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size // 2),
+            MishActivation(),
+            nn.Dropout(dropout * 0.5),
+            nn.Linear(hidden_size // 2, output_size),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        rnn_out, _ = self.rnn(x)              # (batch, seq_len, hidden)
+        context    = self.attention(rnn_out)   # (batch, hidden)
+        context    = self.dropout(context)
+        return self.output_layer(context)      # (batch, output_size)
+
+
+# -----------------------------------------------------------------------
+# HÀM HỖ TRỢ: MÃ HÓA THỜI GIAN VÀO FEATURES (Cyclical Encoding)
+# -----------------------------------------------------------------------
+def make_time_features(timestamp: pd.Timestamp) -> np.ndarray:
+    """
+    Tạo 6 đặc trưng thời gian tuần hoàn từ một timestamp:
+      [hour_sin, hour_cos, day_sin, day_cos, week_sin, week_cos]
+    Khớp hoàn toàn với cách mã hóa trong train_model_weather.py.
+    """
+    hour_sin  = np.sin(2 * np.pi * timestamp.hour / 24)
+    hour_cos  = np.cos(2 * np.pi * timestamp.hour / 24)
+    day_sin   = np.sin(2 * np.pi * timestamp.dayofyear / 365.25)
+    day_cos   = np.cos(2 * np.pi * timestamp.dayofyear / 365.25)
+    week_sin  = np.sin(2 * np.pi * timestamp.dayofweek / 7)
+    week_cos  = np.cos(2 * np.pi * timestamp.dayofweek / 7)
+    return np.array([hour_sin, hour_cos, day_sin, day_cos, week_sin, week_cos], dtype=np.float32)
+
+
+def build_input_sequence_with_time(
+    weather_scaled: np.ndarray,   # shape (N, 4): [Scaled_temp, Scaled_hum, Scaled_pres, Scaled_prec]
+    timestamps: list,              # list of pd.Timestamp, len=N
+    seq_len: int = 96
+) -> np.ndarray:
+    """
+    Ghép weather_scaled (N,4) với time_features (N,6) → (N,10).
+    Cắt seq_len bước cuối cùng → (seq_len, 10).
+    """
+    n = len(timestamps)
+    time_feats = np.array([make_time_features(t) for t in timestamps], dtype=np.float32)  # (N,6)
+    combined   = np.concatenate([weather_scaled, time_feats], axis=1)   # (N, 10)
+    # Lấy seq_len bước cuối (pad đầu nếu không đủ)
+    if n >= seq_len:
+        return combined[-seq_len:]
+    else:
+        pad = np.zeros((seq_len - n, 10), dtype=np.float32)
+        return np.concatenate([pad, combined], axis=0)
+
+
+# -----------------------------------------------------------------------
+# HÀM DỰ BÁO AUTOREGRESSIVE (MODEL MỚI — 10 INPUT FEATURES)
+# -----------------------------------------------------------------------
+def predict_autoregressive_weather(
+    model, input_seq, steps, device,
+    scaler=None,              # MinMaxScaler cho 4 cột thời tiết
+    start_timestamp=None      # pd.Timestamp của bước dự báo đầu tiên (t+1)
+):
+    """
+    Dự báo autoregressive nhiều bước với model mới (input 10 features).
+
+    Tại mỗi bước:
+      1. Dự báo 4 Scaled thời tiết từ chuỗi hiện tại (seq_len, 10)
+      2. Inverse-transform → clip vật lý → re-scale
+      3. Tạo time features cho timestamp tiếp theo
+      4. Ghép [4 scaled weather | 6 time feats] → nối vào chuỗi trượt
+    """
+    current_seq = torch.FloatTensor(input_seq).unsqueeze(0).to(device)  # (1, seq_len, 10)
+    predictions_weather = []  # chỉ lưu 4 cột thời tiết (scaled)
+
+    # Timestamp dự báo bắt đầu từ step tiếp theo
+    current_ts = start_timestamp if start_timestamp is not None else pd.Timestamp.now()
 
     with torch.no_grad():
         for step in range(steps):
-            pred = model(current_seq)
-            pred_np = pred.cpu().numpy()[0]  # shape: (4,)
+            pred = model(current_seq)           # (1, 4)
+            pred_np = pred.cpu().numpy()[0]     # (4,)
 
             if scaler is not None:
-                # Lý tưởng nhất: scale ngược lại, clip giá trị vật lý, roi scale đi, roi moi feed
+                # Inverse → clip vật lý → re-scale
                 pred_real = scaler.inverse_transform(pred_np.reshape(1, -1))[0]
-                
-                # Clip lượng mưa không âm và các biến khác trong khoảng hợp lý
-                pred_real[3] = np.clip(pred_real[3], 0, None)
-                pred_real[1] = np.clip(pred_real[1], 0, 100)
-                pred_real[0] = np.clip(pred_real[0], 5.0, 44.0)
-                pred_real[2] = np.clip(pred_real[2], 960.0, 1050.0)
-                
-                pred_np_clipped = scaler.transform(pred_real.reshape(1, -1))[0]
+                pred_real[0] = np.clip(pred_real[0], 5.0,   44.0)    # nhiệt độ
+                pred_real[1] = np.clip(pred_real[1], 0.0,   100.0)   # độ ẩm
+                pred_real[2] = np.clip(pred_real[2], 960.0, 1050.0)  # áp suất
+                pred_real[3] = np.clip(pred_real[3], 0.0,   None)    # lượng mưa
+                pred_scaled  = scaler.transform(pred_real.reshape(1, -1))[0]
             else:
-                pred_np_clipped = pred_np
+                pred_scaled = pred_np.copy()
+                pred_scaled[3] = max(pred_scaled[3], 0.0)
 
-            predictions.append(pred_np_clipped.copy())
+            predictions_weather.append(pred_scaled.copy())
 
-            pred_tensor = torch.FloatTensor(pred_np_clipped).unsqueeze(0).unsqueeze(0).to(device)
-            current_seq = torch.cat([current_seq[:, 1:, :], pred_tensor], dim=1)
+            # Tạo time features cho timestamp TIẾP THEO
+            next_ts     = current_ts + pd.Timedelta(hours=1)
+            time_feat   = make_time_features(next_ts)                  # (6,)
+            next_row    = np.concatenate([pred_scaled, time_feat])     # (10,)
+            next_tensor = torch.FloatTensor(next_row).unsqueeze(0).unsqueeze(0).to(device)  # (1,1,10)
 
-    return np.array(predictions)
+            # Trượt chuỗi: bỏ bước đầu, thêm bước mới
+            current_seq = torch.cat([current_seq[:, 1:, :], next_tensor], dim=1)
+            current_ts  = next_ts
+
+    return np.array(predictions_weather)  # (steps, 4) — scaled
 
 
 def predict_autoregressive_finance(model, input_seq, steps, device):
@@ -241,53 +339,70 @@ def predict_autoregressive_finance(model, input_seq, steps, device):
 # -------------------------------------------------------------
 @st.cache_resource
 def load_weather_model_and_scaler():
-    """Load model thời tiết Hà Tĩnh mới (4 features) và khởi tạo scaler đã được hiệu chỉnh.
-
-    Scaler được fit với min/max thực tế của bộ dữ liệu Hà Tĩnh 1940-2026:
-    - temperature (°C)  : [5.0,  43.0]  - bao phủ đợt lạnh bất thường và nắng nóng kỷ lục
-    - humidity (%)      : [20.0, 100.0] - từ khô hanh đến bão hòa
-    - pressure (hPa)    : [960.0, 1045.0] - dải rộng để bao phủ áp thấp nhiệt đới
-    - precipitation (mm): [0.0,  300.0]  - bao phủ mưa cực lớn mùa bão (Hà Tĩnh > 200mm/h)
+    """
+    Load model thời tiết mới: WeatherForecastModel (input=10, hidden=256, layers=3, seq_len=96).
+    Đọc config từ checkpoint để tự động cấu hình tham số.
+    Scaler chỉ dùng cho 4 cột thời tiết gốc (temperature, humidity, pressure, precipitation).
     """
     from sklearn.preprocessing import MinMaxScaler
-    model_path = "best_weather_model.pth"
+
+    model_path = "best_weather_model(release).pth"
     if not os.path.exists(model_path):
-        return None, None, None
+        return None, None, None, 96  # model, device, scaler, seq_len
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = WeatherLGRUModel(input_size=4, hidden_size=128, output_size=4, num_layers=2).to(device)
+
+    # Đọc checkpoint
     ckpt = torch.load(model_path, map_location=device, weights_only=False)
+
+    # Đọc cấu hình từ checkpoint (có fallback an toàn)
+    input_size  = ckpt.get('input_size',  10)
+    hidden_size = ckpt.get('hidden_size', 256)
+    num_layers  = ckpt.get('num_layers',  3)
+    output_size = ckpt.get('output_size', 4)
+    seq_len     = ckpt.get('seq_len',     96)
+
+    cfg = ckpt.get('config', {})
+    dropout = cfg.get('dropout', 0.25)
+
+    # Khởi tạo model với đúng kiến trúc
+    model = WeatherForecastModel(
+        input_size  = input_size,
+        hidden_size = hidden_size,
+        num_layers  = num_layers,
+        output_size = output_size,
+        dropout     = dropout,
+    ).to(device)
+
+    # Load weights (xử lý prefix '_orig_mod.' nếu có từ torch.compile)
     state_dict = ckpt['model_state']
-    new_state_dict = {k.replace('_orig_mod.', ''): v for k, v in state_dict.items()}
-    model.load_state_dict(new_state_dict)
+    state_dict = {k.replace('_orig_mod.', ''): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict, strict=True)
     model.eval()
 
-    scaler = MinMaxScaler()
+    # ── Scaler cho 4 cột thời tiết gốc ──
+    scaler   = MinMaxScaler()
     features = ['temperature', 'humidity', 'pressure', 'precipitation']
     train_path = "weather_trainn.csv"
 
     if os.path.exists(train_path):
-        # Đọc file training theo chunks để tiết kiệm RAM (file > 700k dòng)
+        # Đọc theo chunks để tiết kiệm RAM (file > 700k dòng)
         data_min = None
         data_max = None
         for chunk in pd.read_csv(train_path, usecols=features, chunksize=50000):
-            # Đảm bảo precipitation không âm trong data gốc
             chunk['precipitation'] = chunk['precipitation'].clip(lower=0)
-            chunk_min = chunk[features].min().values
-            chunk_max = chunk[features].max().values
-            data_min = chunk_min if data_min is None else np.minimum(data_min, chunk_min)
-            data_max = chunk_max if data_max is None else np.maximum(data_max, chunk_max)
-        dummy = np.vstack([data_min, data_max])
-        scaler.fit(dummy)
+            c_min = chunk[features].min().values
+            c_max = chunk[features].max().values
+            data_min = c_min if data_min is None else np.minimum(data_min, c_min)
+            data_max = c_max if data_max is None else np.maximum(data_max, c_max)
+        scaler.fit(np.vstack([data_min, data_max]))
     else:
-        # --- SCALER ĐÃ HIỆU CHỈNH (khi không có file training trên Streamlit Cloud) ---
-        # Dải precipitation mở rộng lên 300mm để bao phủ mưa bão lớn ở Hà Tĩnh
-        # [temperature, humidity, pressure, precipitation]
+        # Fallback: dải hợp lý cho Hà Tĩnh khi không có file training
         data_min = np.array([5.0,  20.0,  960.0,  0.0])
         data_max = np.array([43.0, 100.0, 1045.0, 300.0])
-        dummy = np.vstack([data_min, data_max])
-        scaler.fit(dummy)
+        scaler.fit(np.vstack([data_min, data_max]))
 
-    return model, device, scaler
+    return model, device, scaler, seq_len
 
 
 @st.cache_resource
@@ -348,17 +463,17 @@ def run_weather_app():
 
     st.divider()
 
-    # Load model mới kèm scaler từ checkpoint
-    model, device, scaler = load_weather_model_and_scaler()
+    # Load model mới (WeatherForecastModel, input=10, hidden=256, layers=3, seq_len=96)
+    model, device, scaler, SEQ_LEN = load_weather_model_and_scaler()
 
     if model is None:
-        st.error("❌ Không tìm thấy file model thời tiết `best_weather_model.pth`.")
+        st.error("❌ Không tìm thấy file model thời tiết `best_weather_model(release).pth`.")
         st.stop()
     if scaler is None:
-        st.error("❌ Không thể khôi phục Scaler từ checkpoint model.")
+        st.error("❌ Không thể khởi tạo Scaler cho dữ liệu thời tiết.")
         st.stop()
 
-    forecast_hours = st.sidebar.slider("Dự báo bao nhiêu giờ tiếp theo?", min_value=1, max_value=48, value=24)
+    forecast_hours = st.sidebar.slider("Dự báo bao nhiêu giờ tiếp theo?", min_value=1, max_value=72, value=24)
 
     st.markdown("### 🗓️ 1. Chọn thời điểm bắt đầu dự báo")
     st.info("💡 Không cần tải lên file. Hệ thống sẽ **tự động kết nối vệ tinh và tải dữ liệu thời tiết** 48 giờ trước thời điểm bạn chọn.")
@@ -380,7 +495,9 @@ def run_weather_app():
             import datetime
 
             target_dt = datetime.datetime.combine(selected_date, selected_time)
-            start_dt = target_dt - timedelta(hours=48)
+            # Model mới dùng seq_len=96 (4 ngày), tải thêm buffer để đủ
+            hours_needed = SEQ_LEN + 24  # đủ dữ liệu + buffer
+            start_dt = target_dt - timedelta(hours=hours_needed)
 
             start_str = start_dt.strftime('%Y-%m-%d')
             end_str = (target_dt + timedelta(days=1)).strftime('%Y-%m-%d')
@@ -388,9 +505,17 @@ def run_weather_app():
             # Tính số ngày từ hiện tại
             days_diff = (today - selected_date).days
             if days_diff <= 3:
-                url = "https://api.open-meteo.com/v1/forecast?latitude=18.3333&longitude=105.9000&past_days=5&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation&timezone=Asia%2FBangkok"
+                url = ("https://api.open-meteo.com/v1/forecast?"
+                       "latitude=18.3333&longitude=105.9000"
+                       f"&past_days=7"
+                       "&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation"
+                       "&timezone=Asia%2FBangkok")
             else:
-                url = f"https://archive-api.open-meteo.com/v1/archive?latitude=18.3333&longitude=105.9000&start_date={start_str}&end_date={end_str}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation&timezone=Asia%2FBangkok"
+                url = (f"https://archive-api.open-meteo.com/v1/archive?"
+                       f"latitude=18.3333&longitude=105.9000"
+                       f"&start_date={start_str}&end_date={end_str}"
+                       f"&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation"
+                       f"&timezone=Asia%2FBangkok")
 
             try:
                 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -410,42 +535,68 @@ def run_weather_app():
                     'precipitation': hourly['precipitation']
                 })
 
-                # Cắt đúng 48 giờ trước target_dt
+                # Cắt đúng SEQ_LEN giờ trước target_dt
                 target_dt_str = target_dt.strftime('%Y-%m-%dT%H:00')
                 df_past = df_all[df_all['time'] <= target_dt_str]
 
-                if len(df_past) >= 48:
-                    df = df_past.tail(48).reset_index(drop=True)
+                if len(df_past) >= SEQ_LEN:
+                    df = df_past.tail(SEQ_LEN).reset_index(drop=True)
+                elif len(df_past) > 0:
+                    df = df_past.reset_index(drop=True)   # dùng tất cả những gì có
                 else:
-                    df = df_all.head(48).reset_index(drop=True)  # fallback
+                    df = df_all.head(SEQ_LEN).reset_index(drop=True)
 
-                # Tách riêng xử lý missing data theo bản chất thời tiết
-                # Lượng mưa điền 0 vì là biến rời rạc, tránh nội suy "mưa rỉ rả"
-                df[['temperature', 'humidity', 'pressure']] = df[['temperature', 'humidity', 'pressure']].interpolate(method='linear').bfill().ffill()
+                # Xử lý missing data: nội suy liên tục, mưa điền 0
+                df[['temperature', 'humidity', 'pressure']] = (
+                    df[['temperature', 'humidity', 'pressure']]
+                    .interpolate(method='linear').bfill().ffill()
+                )
                 df['precipitation'] = df['precipitation'].fillna(0)
 
-                st.success(f"✅ Đã tải thành công 48 giờ dữ liệu tính đến {target_dt.strftime('%H:%M %d/%m/%Y')}!")
+                n_rows = len(df)
+                st.success(
+                    f"✅ Đã tải thành công {n_rows} giờ dữ liệu "
+                    f"(cần {SEQ_LEN}) tính đến {target_dt.strftime('%H:%M %d/%m/%Y')}!"
+                )
                 with st.expander("👁️ Xem trước dữ liệu tự động tải"):
-                    st.dataframe(df.head(), use_container_width=True)
+                    st.dataframe(df.tail(10), use_container_width=True)
 
             except Exception as e:
                 st.error(f"❌ Lỗi tự động tải dữ liệu: {e}")
                 st.stop()
 
-        # --- Bắt đầu dự báo ---
-        with st.spinner("🤖 Bộ AI L-GRU đang xử lý mô phỏng..."):
-            features = ['temperature', 'humidity', 'pressure', 'precipitation']
-            data = df[features].values.astype(np.float32)
+        # ── Bắt đầu dự báo ──
+        with st.spinner("🤖 Bộ AI L-GRU (seq=96h, input=10) đang xử lý mô phỏng..."):
+            weather_features = ['temperature', 'humidity', 'pressure', 'precipitation']
+            data_raw = df[weather_features].values.astype(np.float32)
 
-            # Clip dữ liệu đầu vào vào dải hợp lệ trước khi scale
-            data[:, 3] = np.clip(data[:, 3], 0, None)  # Lượng mưa không âm
-            data_scaled = scaler.transform(data)
+            # Clip vật lý trước khi scale
+            data_raw[:, 0] = np.clip(data_raw[:, 0], 5.0,   44.0)    # nhiệt độ
+            data_raw[:, 1] = np.clip(data_raw[:, 1], 0.0,   100.0)   # độ ẩm
+            data_raw[:, 2] = np.clip(data_raw[:, 2], 960.0, 1050.0)  # áp suất
+            data_raw[:, 3] = np.clip(data_raw[:, 3], 0.0,   None)    # mưa
+            data_scaled = scaler.transform(data_raw)  # (N, 4)
 
-            # Dự báo autoregressive truyền kèm scaler để inverse-clip trong vòng lặp
+            # Tạo danh sách timestamps tương ứng với từng hàng dữ liệu
+            timestamps_list = pd.to_datetime(df['time']).tolist()
+
+            # Xây dựng input sequence (seq_len, 10) = [4 weather | 6 time features]
+            input_seq = build_input_sequence_with_time(
+                data_scaled, timestamps_list, seq_len=SEQ_LEN
+            )  # (SEQ_LEN, 10)
+
+            # Timestamp của bước dự báo đầu tiên (= cuối input + 1 giờ)
+            last_ts = pd.to_datetime(df['time'].iloc[-1])
+            first_forecast_ts = last_ts + pd.Timedelta(hours=1)
+
+            # Dự báo autoregressive — có tích hợp time features trong vòng lặp
             preds_scaled = predict_autoregressive_weather(
-                model, data_scaled, steps=forecast_hours, device=device, scaler=scaler
-            )
-            preds = scaler.inverse_transform(preds_scaled)
+                model, input_seq, steps=forecast_hours,
+                device=device, scaler=scaler,
+                start_timestamp=first_forecast_ts
+            )  # (forecast_hours, 4) scaled
+
+            preds = scaler.inverse_transform(preds_scaled)  # (forecast_hours, 4) real units
 
             # =========================================================
             # HẬU XỬ LÝ KẾT QUẢ DỰ BÁO
@@ -474,7 +625,10 @@ def run_weather_app():
             # =========================================================
             past_times = pd.to_datetime(df['time'].tolist()) if 'time' in df.columns else \
                 [last_time - timedelta(hours=len(df)-i-1) for i in range(len(df))]
-            past_temp = df['temperature'].values
+            # Hiển thị tối đa 96h gần nhất để biểu đồ không quá dày
+            display_hours = min(96, len(df))
+            past_times = past_times[-display_hours:]
+            past_temp = df['temperature'].values[-display_hours:]
 
             st.divider()
             st.markdown("### 🌟 Tổng quan Dự báo")

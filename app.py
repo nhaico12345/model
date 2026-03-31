@@ -349,7 +349,7 @@ def load_weather_model_and_scaler():
     Đọc config từ checkpoint để tự động cấu hình tham số.
     Scaler chỉ dùng cho 4 cột thời tiết gốc (temperature, humidity, pressure, precipitation).
     """
-    from sklearn.preprocessing import MinMaxScaler
+    import joblib
 
     model_path = "best_weather_model(release).pth"
     if not os.path.exists(model_path):
@@ -385,40 +385,18 @@ def load_weather_model_and_scaler():
     model.load_state_dict(state_dict, strict=True)
     model.eval()
 
-    # ── Scaler cho 4 cột thời tiết gốc ──
-    scaler   = MinMaxScaler()
-    features = ['temperature', 'humidity', 'pressure', 'precipitation']
-    train_path = "weather_trainn.csv"
-
-    # Dải hợp lý cho Hà Tĩnh — dùng khi không đọc được CSV
-    # humidity_min = 0.0 (an toàn hơn 20.0 vì mùa khô Hà Tĩnh có thể xuống rất thấp)
-    _fallback_min = np.array([5.0,  0.0,   960.0,  0.0])
-    _fallback_max = np.array([43.0, 100.0, 1045.0, 300.0])
-
-    if os.path.exists(train_path):
-        try:
-            # Đọc theo chunks để tiết kiệm RAM (file > 700k dòng)
-            # File CSV phải có cột: temperature, humidity, pressure, precipitation
-            data_min = None
-            data_max = None
-            for chunk in pd.read_csv(train_path, usecols=features, chunksize=50000):
-                chunk['precipitation'] = chunk['precipitation'].clip(lower=0)
-                c_min = chunk[features].min().values
-                c_max = chunk[features].max().values
-                data_min = c_min if data_min is None else np.minimum(data_min, c_min)
-                data_max = c_max if data_max is None else np.maximum(data_max, c_max)
-            scaler.fit(np.vstack([data_min, data_max]))
-        except (ValueError, KeyError) as e:
-            # Xảy ra khi CSV chỉ có cột Scaled_* mà không có cột raw
-            # → dùng fallback hợp lý cho vùng Hà Tĩnh
-            import warnings
-            warnings.warn(
-                f"[Scaler] Không đọc được cột raw từ {train_path} ({e}). "
-                "Dùng dải hợp lý cho Hà Tĩnh làm fallback."
-            )
-            scaler.fit(np.vstack([_fallback_min, _fallback_max]))
+    # ── Scaler ──
+    scaler_path = "weather_scaler.pkl"
+    if os.path.exists(scaler_path):
+        scaler = joblib.load(scaler_path)
     else:
-        # Fallback: dải hợp lý cho Hà Tĩnh khi không có file training
+        st.warning("⚠️ Không tìm thấy weather_scaler.pkl, đang dùng Fallback an toàn cho miền Trung.")
+        from sklearn.preprocessing import MinMaxScaler
+        scaler = MinMaxScaler()
+        # Nới lỏng fallback_max cho lượng mưa đề phòng bão lớn (300 -> 600mm)
+        # Nới max nhiệt độ lên 45.0 độ
+        _fallback_min = np.array([5.0,  0.0,   960.0,  0.0])
+        _fallback_max = np.array([45.0, 100.0, 1045.0, 600.0])
         scaler.fit(np.vstack([_fallback_min, _fallback_max]))
 
     return model, device, scaler, seq_len
@@ -558,8 +536,10 @@ def run_weather_app():
                 })
 
                 # Cắt đúng SEQ_LEN giờ trước target_dt
-                target_dt_str = target_dt.strftime('%Y-%m-%dT%H:00')
-                df_past = df_all[df_all['time'] <= target_dt_str]
+                # Chuyển đổi toàn bộ cột time sang đối tượng datetime
+                df_all['time'] = pd.to_datetime(df_all['time'])
+                # Lọc bằng đối tượng datetime trực tiếp
+                df_past = df_all[df_all['time'] <= pd.to_datetime(target_dt)]
 
                 if len(df_past) >= SEQ_LEN:
                     df = df_past.tail(SEQ_LEN).reset_index(drop=True)
@@ -651,6 +631,8 @@ def run_weather_app():
             display_hours = min(96, len(df))
             past_times = past_times[-display_hours:]
             past_temp = df['temperature'].values[-display_hours:]
+            past_humidity = df['humidity'].values[-display_hours:]
+            past_pressure = df['pressure'].values[-display_hours:]
 
             st.divider()
             st.markdown("### 🌟 Tổng quan Dự báo")
@@ -713,6 +695,48 @@ def run_weather_app():
                 template="plotly_white"
             )
             st.plotly_chart(fig_rain, use_container_width=True)
+
+            # Biểu đồ độ ẩm
+            fig_hum = go.Figure()
+            fig_hum.add_trace(go.Scatter(
+                x=past_times, y=past_humidity, mode='lines+markers',
+                name='Thực tế', line=dict(color='#10B981', width=3)
+            ))
+            fig_hum.add_trace(go.Scatter(
+                x=[past_times[-1]] + list(future_times),
+                y=[past_humidity[-1]] + list(preds[:, 1]),
+                mode='lines+markers', name='Dự báo',
+                line=dict(color='#FBBF24', width=3, dash='dash')
+            ))
+            fig_hum.update_layout(
+                title="Biểu đồ Dự báo Độ ẩm",
+                xaxis_title="Thời gian (Giờ)", yaxis_title="Độ ẩm (%)",
+                hovermode="x unified", template="plotly_white"
+            )
+            
+            # Biểu đồ áp suất
+            fig_pres = go.Figure()
+            fig_pres.add_trace(go.Scatter(
+                x=past_times, y=past_pressure, mode='lines+markers',
+                name='Thực tế', line=dict(color='#8B5CF6', width=3)
+            ))
+            fig_pres.add_trace(go.Scatter(
+                x=[past_times[-1]] + list(future_times),
+                y=[past_pressure[-1]] + list(preds[:, 2]),
+                mode='lines+markers', name='Dự báo',
+                line=dict(color='#A78BFA', width=3, dash='dash')
+            ))
+            fig_pres.update_layout(
+                title="Biểu đồ Dự báo Áp suất",
+                xaxis_title="Thời gian (Giờ)", yaxis_title="Áp suất (hPa)",
+                hovermode="x unified", template="plotly_white"
+            )
+
+            col_chart1, col_chart2 = st.columns(2)
+            with col_chart1:
+                st.plotly_chart(fig_hum, use_container_width=True)
+            with col_chart2:
+                st.plotly_chart(fig_pres, use_container_width=True)
 
             with st.expander("📊 Bảng dữ liệu chi tiết từng giờ"):
                 res_df = pd.DataFrame({

@@ -9,15 +9,15 @@ import os
 import warnings
 try:
     from sklearn.exceptions import InconsistentVersionWarning
-    warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+    warnings.filterwarnings("Bỏ qua", category=InconsistentVersionWarning)
 except ImportError:
     pass
-warnings.filterwarnings("ignore", message=".*X does not have valid feature names.*")
+warnings.filterwarnings("Bỏ qua", message=".*X không có tên các đặc trưng hợp lệ.*")
 from datetime import timedelta
 
 # Cấu hình trang tổng
 st.set_page_config(
-    page_title="L-GRU AI Forecast Dashboard",
+    page_title="Bảng điều khiển Dự báo AI L-GRU",
     page_icon="🤖",
     layout="wide"
 )
@@ -542,7 +542,7 @@ def run_weather_app():
     forecast_hours = st.sidebar.slider("Dự báo bao nhiêu giờ tiếp theo?", min_value=1, max_value=72, value=24)
 
     st.markdown("### 🗓️ 1. Chọn thời điểm bắt đầu dự báo")
-    st.info("💡 Không cần tải lên file. Hệ thống sẽ **tự động kết nối vệ tinh và tải dữ liệu thời tiết** 48 giờ trước thời điểm bạn chọn.")
+    st.info("💡Hệ thống sẽ **tự động kết nối vệ tinh và tải dữ liệu thời tiết** 48 giờ trước thời điểm bạn chọn.")
 
     col_date, col_time = st.columns(2)
     with col_date:

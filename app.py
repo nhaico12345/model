@@ -6,6 +6,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import plotly.graph_objects as go
 import os
+import warnings
+try:
+    from sklearn.exceptions import InconsistentVersionWarning
+    warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+except ImportError:
+    pass
+warnings.filterwarnings("ignore", message=".*X does not have valid feature names.*")
 from datetime import timedelta
 
 # Cấu hình trang tổng
@@ -547,7 +554,7 @@ def run_weather_app():
             st.session_state["default_time"] = pd.Timestamp.now('Asia/Bangkok').replace(second=0, microsecond=0).time()
         selected_time = st.time_input("Giờ dự báo:", value=st.session_state["default_time"])
 
-    if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", use_container_width=True, type="primary", key="btn_weather"):
+    if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", width="stretch", type="primary", key="btn_weather"):
         with st.spinner("⏳ Đang tải dữ liệu thời tiết thực tế từ trạm khí tượng (Open-Meteo API)..."):
             import urllib.request
             import json
@@ -627,7 +634,7 @@ def run_weather_app():
                     f"(cần {SEQ_LEN}) tính đến {target_dt.strftime('%H:%M %d/%m/%Y')}!"
                 )
                 with st.expander("👁️ Xem trước dữ liệu tự động tải"):
-                    st.dataframe(df.tail(10), use_container_width=True)
+                    st.dataframe(df.tail(10), width="stretch")
 
             except Exception as e:
                 st.error(f"❌ Lỗi tự động tải dữ liệu: {e}")
@@ -781,7 +788,7 @@ def run_weather_app():
                 }
             ))
             fig_gauge.update_layout(height=350, margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig_gauge, use_container_width=True)
+            st.plotly_chart(fig_gauge, width="stretch")
 
             st.divider()
             st.markdown("### 📈 Phân tích Xu hướng Chi tiết")
@@ -815,7 +822,7 @@ def run_weather_app():
                 xaxis_title="Thời gian", yaxis_title="Nhiệt độ (°C)",
                 hovermode="x unified", template="plotly_white"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Biểu đồ lượng mưa với uncertainty
             rain_upper = np.clip(preds[:, 3] + preds_std[:, 3], 0, None)
@@ -831,7 +838,7 @@ def run_weather_app():
                 yaxis=dict(rangemode='nonnegative'),
                 template="plotly_white"
             )
-            st.plotly_chart(fig_rain, use_container_width=True)
+            st.plotly_chart(fig_rain, width="stretch")
 
             # Độ ẩm và Áp suất
             fig_hum = go.Figure()
@@ -870,9 +877,9 @@ def run_weather_app():
 
             col_chart1, col_chart2 = st.columns(2)
             with col_chart1:
-                st.plotly_chart(fig_hum, use_container_width=True)
+                st.plotly_chart(fig_hum, width="stretch")
             with col_chart2:
-                st.plotly_chart(fig_pres, use_container_width=True)
+                st.plotly_chart(fig_pres, width="stretch")
 
             # Heat Index chart
             fig_hi = go.Figure()
@@ -890,7 +897,7 @@ def run_weather_app():
                 xaxis_title="Thời gian", yaxis_title="Heat Index (°C)",
                 template="plotly_white"
             )
-            st.plotly_chart(fig_hi, use_container_width=True)
+            st.plotly_chart(fig_hi, width="stretch")
 
             with st.expander("📊 Bảng dữ liệu chi tiết từng giờ"):
                 res_df = pd.DataFrame({
@@ -903,7 +910,7 @@ def run_weather_app():
                     "Lượng mưa (mm)"  : preds[:, 3].round(2),
                     "±σ Mưa"          : preds_std[:, 3].round(2),
                 })
-                st.dataframe(res_df, use_container_width=True)
+                st.dataframe(res_df, width="stretch")
 
 
 # -------------------------------------------------------------
@@ -947,7 +954,7 @@ def run_finance_app():
     min_date = today - timedelta(days=365*5)  # Lùi 5 năm
     selected_date = st.date_input("Ngày kết thúc dữ liệu muốn phân tích:", value=today, min_value=min_date, max_value=today)
 
-    if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", use_container_width=True, type="primary", key="btn_finance"):
+    if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", width="stretch", type="primary", key="btn_finance"):
         with st.spinner(f"⏳ Đang kết nối thị trường tài chính để tải dữ liệu {model_choice}..."):
             import yfinance as yf
 
@@ -991,7 +998,7 @@ def run_finance_app():
 
                 st.success(f"✅ Đã tải thành công {len(df)} phiên giao dịch gần nhất!")
                 with st.expander("👁️ Xem trước dữ liệu tự động tải"):
-                    st.dataframe(df.tail(), use_container_width=True)
+                    st.dataframe(df.tail(), width="stretch")
 
             except Exception as e:
                 st.error(f"❌ Lỗi tải dữ liệu tài chính: {e}")
@@ -1093,7 +1100,7 @@ def run_finance_app():
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Bảng chi tiết
             with st.expander("🧮 Xem chi tiết bảng giá dự báo từng ngày"):
@@ -1101,7 +1108,7 @@ def run_finance_app():
                     "Ngày": [d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d) for d in future_dates],
                     "Giá dự báo ($)": preds[:, 0].round(2)
                 })
-                st.dataframe(res_df, use_container_width=True, hide_index=True)
+                st.dataframe(res_df, width="stretch", hide_index=True)
 
 
 # -------------------------------------------------------------

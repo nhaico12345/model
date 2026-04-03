@@ -260,61 +260,86 @@ def build_input_sequence_with_time(
 # -----------------------------------------------------------------------
 # HÀM DỰ BÁO AUTOREGRESSIVE (MODEL MỚI — 10 INPUT FEATURES)
 # -----------------------------------------------------------------------
+def _apply_physics_clip(pred_real: np.ndarray, month: int) -> np.ndarray:
+    """
+    Clip vật lý theo mùa cho Hà Tĩnh:
+    - Mùa đông (11-3): nhiệt độ max thấp hơn do gió Bắc
+    - Mùa hè  (4-10): nhiệt độ có thể lên tới 42°C (gió Lào)
+    """
+    if month in (11, 12, 1, 2, 3):   # mùa đông
+        t_max = 32.0
+    elif month in (6, 7, 8):          # đỉnh hè (gió Lào)
+        t_max = 42.0
+    else:
+        t_max = 38.0
+    pred_real[0] = np.clip(pred_real[0],  5.0,   t_max)    # nhiệt độ
+    pred_real[1] = np.clip(pred_real[1],  0.0,  100.0)     # độ ẩm
+    pred_real[2] = np.clip(pred_real[2], 960.0, 1050.0)    # áp suất
+    pred_real[3] = np.clip(pred_real[3],  0.0,  None)      # mưa
+    return pred_real
+
+
 def predict_autoregressive_weather(
     model, input_seq, steps, device,
-    scaler=None,              # MinMaxScaler cho 4 cột thời tiết
-    start_timestamp=None      # pd.Timestamp của bước dự báo đầu tiên (t+1)
+    scaler=None,
+    start_timestamp=None,
+    n_samples: int = 15,          # số lần MC Dropout — tăng lên cho accuracy tốt hơn
 ):
     """
-    Dự báo autoregressive nhiều bước với model mới (input 10 features).
+    Dự báo autoregressive với Monte Carlo Dropout ensemble.
 
-    Tại mỗi bước:
-      1. Dự báo 4 Scaled thời tiết từ chuỗi hiện tại (seq_len, 10)
-      2. Inverse-transform → clip vật lý → re-scale
-      3. Tạo time features cho timestamp tiếp theo
-      4. Ghép [4 scaled weather | 6 time feats] → nối vào chuỗi trượt
+    Chạy n_samples lần với dropout bật → lấy mean ± std.
+    mean  : ước lượng điểm tốt nhất
+    std   : uncertainty (độ không chắc chắn)
+
+    Trả về: (mean_scaled, std_scaled) — mỗi array shape (steps, 4)
     """
-    current_seq = torch.FloatTensor(input_seq).unsqueeze(0).to(device)  # (1, seq_len, 10)
-    predictions_weather = []  # chỉ lưu 4 cột thời tiết (scaled)
-
-    # Timestamp dự báo bắt đầu từ step tiếp theo
     current_ts = start_timestamp if start_timestamp is not None else pd.Timestamp.now()
+    base_seq   = torch.FloatTensor(input_seq).unsqueeze(0).to(device)  # (1, seq_len, 10)
 
-    model.eval()  # Đảm bảo model ở eval mode trong suốt inference
-    with torch.no_grad():
-        for step in range(steps):
-            pred = model(current_seq)           # (1, 4)
-            pred_np = pred.cpu().numpy()[0]     # (4,)
+    # Kích hoạt dropout khi inference (MC Dropout)
+    def enable_dropout(m):
+        if isinstance(m, torch.nn.Dropout):
+            m.train()
 
-            if scaler is not None:
-                # Inverse → clip vật lý → re-scale
-                pred_real = scaler.inverse_transform(pred_np.reshape(1, -1))[0]
-                pred_real[0] = np.clip(pred_real[0], 5.0,   44.0)    # nhiệt độ
-                pred_real[1] = np.clip(pred_real[1], 0.0,   100.0)   # độ ẩm
-                pred_real[2] = np.clip(pred_real[2], 960.0, 1050.0)  # áp suất
-                pred_real[3] = np.clip(pred_real[3], 0.0,   None)    # lượng mưa
-                pred_scaled  = scaler.transform(pred_real.reshape(1, -1))[0]
-            else:
-                pred_scaled = pred_np.copy()
-                pred_scaled[3] = max(pred_scaled[3], 0.0)
+    all_runs = []  # (n_samples, steps, 4) — scaled
 
-            predictions_weather.append(pred_scaled.copy())
+    for _ in range(n_samples):
+        model.eval()
+        model.apply(enable_dropout)   # chỉ bật dropout, giữ BatchNorm eval
 
-            # FIX: Tạo time features cho CHÍNH timestamp hiện tại (current_ts),
-            # KHÔNG phải next_ts. Row mới thêm vào chuỗi phải khớp
-            # [weather dự báo tại t] với [time features tại t].
-            # Lỗi cũ: dùng next_ts → time features lệch +1 giờ so với weather features.
-            time_feat   = make_time_features(current_ts)               # (6,) — khớp với pred_scaled
-            next_row    = np.concatenate([pred_scaled, time_feat])     # (10,)
-            next_tensor = torch.FloatTensor(next_row).unsqueeze(0).unsqueeze(0).to(device)  # (1,1,10)
+        current_seq = base_seq.clone()
+        ts          = current_ts
+        run_preds   = []
 
-            # Trượt chuỗi: bỏ bước đầu, thêm bước mới
-            current_seq = torch.cat([current_seq[:, 1:, :], next_tensor], dim=1)
+        with torch.no_grad():
+            for _step in range(steps):
+                pred_t  = model(current_seq)               # (1, 4)
+                pred_np = pred_t.cpu().numpy()[0]           # (4,)
 
-            # Tăng timestamp SAU khi đã tạo row — không phải trước
-            current_ts  = current_ts + pd.Timedelta(hours=1)
+                if scaler is not None:
+                    pred_real = scaler.inverse_transform(pred_np.reshape(1, -1))[0]
+                    pred_real = _apply_physics_clip(pred_real, ts.month)
+                    pred_scaled = scaler.transform(pred_real.reshape(1, -1))[0]
+                else:
+                    pred_scaled = pred_np.copy()
+                    pred_scaled[3] = max(pred_scaled[3], 0.0)
 
-    return np.array(predictions_weather)  # (steps, 4) — scaled
+                run_preds.append(pred_scaled.copy())
+
+                time_feat   = make_time_features(ts)
+                next_row    = np.concatenate([pred_scaled, time_feat])
+                next_tensor = torch.FloatTensor(next_row).unsqueeze(0).unsqueeze(0).to(device)
+                current_seq = torch.cat([current_seq[:, 1:, :], next_tensor], dim=1)
+                ts += pd.Timedelta(hours=1)
+
+        all_runs.append(np.array(run_preds))  # (steps, 4)
+
+    model.eval()  # khôi phục eval hoàn toàn
+    all_runs = np.array(all_runs)          # (n_samples, steps, 4)
+    mean_scaled = all_runs.mean(axis=0)    # (steps, 4)
+    std_scaled  = all_runs.std(axis=0)     # (steps, 4)
+    return mean_scaled, std_scaled
 
 
 def predict_autoregressive_finance(model, input_seq, steps, device):
@@ -343,32 +368,66 @@ def predict_autoregressive_finance(model, input_seq, steps, device):
 # 2. HÀM XỬ LÝ CACHE MODEL VÀ SCALER
 # -------------------------------------------------------------
 @st.cache_resource
+def load_station_meta():
+    """Đọc tọa độ và timezone trạm đo từ station_meta.json."""
+    import json
+    for p in ["station_meta.json", "model/station_meta.json"]:
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+    # Fallback mặc định Hà Tĩnh
+    return {"latitude": 18.3333, "longitude": 105.9000,
+            "timezone": "Asia/Ho_Chi_Minh",
+            "station_name": "Hà Tĩnh (fallback)"}
+
+
+@st.cache_resource
+def load_model_config():
+    """Đọc hyperparameters từ config.json (ưu tiên hơn hard-code)."""
+    import json
+    for p in ["config.json", "model/config.json"]:
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+    # Fallback cứng nếu không có file
+    return {"input_size": 10, "hidden_size": 256, "num_layers": 3,
+            "output_size": 4, "dropout": 0.25, "seq_len": 96}
+
+
+@st.cache_resource
 def load_weather_model_and_scaler():
     """
-    Load model thời tiết mới: WeatherForecastModel (input=10, hidden=256, layers=3, seq_len=96).
-    Đọc config từ checkpoint để tự động cấu hình tham số.
-    Scaler chỉ dùng cho 4 cột thời tiết gốc (temperature, humidity, pressure, precipitation).
+    Load model + scaler thời tiết.
+    Ưu tiên đọc cấu hình từ config.json, tìm file theo nhiều đường dẫn.
+    Trả về: (model, device, scaler, seq_len)
     """
     import joblib
 
-    model_path = "best_weather_model(release).pth"
-    if not os.path.exists(model_path):
-        return None, None, None, 96  # model, device, scaler, seq_len
+    # Tìm file model theo thứ tự ưu tiên
+    model_candidates = [
+        "best_weather_model(release).pth",
+        "model/best_weather_model.pth",
+        "model/best_weather_model(release).pth",
+    ]
+    model_path = next((p for p in model_candidates if os.path.exists(p)), None)
+    if model_path is None:
+        return None, None, None, 96
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Đọc checkpoint
+    # Đọc config từ file JSON trước (nguồn đáng tin cậy nhất)
+    cfg_file = load_model_config()
+
+    # Đọc checkpoint và merge (checkpoint override config nếu có)
     ckpt = torch.load(model_path, map_location=device, weights_only=False)
+    ckpt_cfg = ckpt.get('config', {})
 
-    # Đọc cấu hình từ checkpoint (có fallback an toàn)
-    input_size  = ckpt.get('input_size',  10)
-    hidden_size = ckpt.get('hidden_size', 256)
-    num_layers  = ckpt.get('num_layers',  3)
-    output_size = ckpt.get('output_size', 4)
-    seq_len     = ckpt.get('seq_len',     96)
-
-    cfg = ckpt.get('config', {})
-    dropout = cfg.get('dropout', 0.25)
+    input_size  = ckpt.get('input_size',  cfg_file.get('input_size',  10))
+    hidden_size = ckpt.get('hidden_size', cfg_file.get('hidden_size', 256))
+    num_layers  = ckpt.get('num_layers',  cfg_file.get('num_layers',  3))
+    output_size = ckpt.get('output_size', cfg_file.get('output_size', 4))
+    seq_len     = ckpt.get('seq_len',     cfg_file.get('seq_len',     96))
+    dropout     = ckpt_cfg.get('dropout', cfg_file.get('dropout',     0.25))
 
     # Khởi tạo model với đúng kiến trúc
     model = WeatherForecastModel(
@@ -385,19 +444,22 @@ def load_weather_model_and_scaler():
     model.load_state_dict(state_dict, strict=True)
     model.eval()
 
-    # ── Scaler ──
-    scaler_path = "weather_scaler.pkl"
-    if os.path.exists(scaler_path):
+    # Tìm scaler theo thứ tự ưu tiên
+    scaler_candidates = [
+        "weather_scaler.pkl",
+        "model/weather_scaler.pkl",
+        "weather_scaler.joblib",
+    ]
+    scaler_path = next((p for p in scaler_candidates if os.path.exists(p)), None)
+    if scaler_path:
         scaler = joblib.load(scaler_path)
     else:
-        st.warning("⚠️ Không tìm thấy weather_scaler.pkl, đang dùng Fallback an toàn cho miền Trung.")
+        st.warning("⚠️ Không tìm thấy weather_scaler.pkl — dùng Fallback Hà Tĩnh. Kết quả có thể kém chính xác.")
         from sklearn.preprocessing import MinMaxScaler
         scaler = MinMaxScaler()
-        # Nới lỏng fallback_max cho lượng mưa đề phòng bão lớn (300 -> 600mm)
-        # Nới max nhiệt độ lên 45.0 độ
-        _fallback_min = np.array([5.0,  0.0,   960.0,  0.0])
-        _fallback_max = np.array([45.0, 100.0, 1045.0, 600.0])
-        scaler.fit(np.vstack([_fallback_min, _fallback_max]))
+        _min = np.array([5.0,   0.0,   960.0,  0.0])
+        _max = np.array([45.0, 100.0, 1045.0, 600.0])
+        scaler.fit(np.vstack([_min, _max]))
 
     return model, device, scaler, seq_len
 
@@ -501,21 +563,25 @@ def run_weather_app():
             end_str = (target_dt + timedelta(days=1)).strftime('%Y-%m-%d')
 
             # Tính số ngày từ hiện tại
+            # Đọc tọa độ từ station_meta.json (nhất quán với training)
+            _meta = load_station_meta()
+            _lat  = _meta.get('latitude',  18.3333)
+            _lon  = _meta.get('longitude', 105.9000)
+            _tz   = _meta.get('timezone',  'Asia/Ho_Chi_Minh').replace('/', '%2F')
+
             days_diff = (today - selected_date).days
             if days_diff <= 3:
-                # API forecast: past_days=7 + forecast_days=1 để bao phủ target_dt
-                # Thêm &forecast_days=1 để API trả về cả bản ghi giờ gần nhất hôm nay
-                url = ("https://api.open-meteo.com/v1/forecast?"
-                       "latitude=18.3333&longitude=105.9000"
+                url = (f"https://api.open-meteo.com/v1/forecast?"
+                       f"latitude={_lat}&longitude={_lon}"
                        f"&past_days=7&forecast_days=1"
-                       "&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation"
-                       "&timezone=Asia%2FBangkok")
+                       f"&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation"
+                       f"&timezone={_tz}")
             else:
                 url = (f"https://archive-api.open-meteo.com/v1/archive?"
-                       f"latitude=18.3333&longitude=105.9000"
+                       f"latitude={_lat}&longitude={_lon}"
                        f"&start_date={start_str}&end_date={end_str}"
                        f"&hourly=temperature_2m,relative_humidity_2m,surface_pressure,precipitation"
-                       f"&timezone=Asia%2FBangkok")
+                       f"&timezone={_tz}")
 
             try:
                 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -568,95 +634,150 @@ def run_weather_app():
                 st.stop()
 
         # ── Bắt đầu dự báo ──
-        with st.spinner("🤖 Bộ AI L-GRU (seq=96h, input=10) đang xử lý mô phỏng..."):
+        with st.spinner("🤖 AI L-GRU đang chạy Monte Carlo Dropout ensemble (15 lần)..."):
             weather_features = ['temperature', 'humidity', 'pressure', 'precipitation']
             data_raw = df[weather_features].values.astype(np.float32)
 
             # Clip vật lý trước khi scale
-            data_raw[:, 0] = np.clip(data_raw[:, 0], 5.0,   44.0)    # nhiệt độ
-            data_raw[:, 1] = np.clip(data_raw[:, 1], 0.0,   100.0)   # độ ẩm
-            data_raw[:, 2] = np.clip(data_raw[:, 2], 960.0, 1050.0)  # áp suất
-            data_raw[:, 3] = np.clip(data_raw[:, 3], 0.0,   None)    # mưa
+            data_raw[:, 0] = np.clip(data_raw[:, 0],  5.0,  44.0)
+            data_raw[:, 1] = np.clip(data_raw[:, 1],  0.0, 100.0)
+            data_raw[:, 2] = np.clip(data_raw[:, 2], 960.0, 1050.0)
+            data_raw[:, 3] = np.clip(data_raw[:, 3],  0.0,  None)
             data_scaled = scaler.transform(data_raw)  # (N, 4)
 
-            # Tạo danh sách timestamps tương ứng với từng hàng dữ liệu
             timestamps_list = pd.to_datetime(df['time']).tolist()
-
-            # Xây dựng input sequence (seq_len, 10) = [4 weather | 6 time features]
             input_seq = build_input_sequence_with_time(
                 data_scaled, timestamps_list, seq_len=SEQ_LEN
             )  # (SEQ_LEN, 10)
 
-            # Timestamp của bước dự báo đầu tiên (= cuối input + 1 giờ)
             last_ts = pd.to_datetime(df['time'].iloc[-1])
             first_forecast_ts = last_ts + pd.Timedelta(hours=1)
 
-            # Dự báo autoregressive — có tích hợp time features trong vòng lặp
-            preds_scaled = predict_autoregressive_weather(
+            # MC Dropout ensemble → mean + std (uncertainty)
+            preds_scaled_mean, preds_scaled_std = predict_autoregressive_weather(
                 model, input_seq, steps=forecast_hours,
                 device=device, scaler=scaler,
-                start_timestamp=first_forecast_ts
-            )  # (forecast_hours, 4) scaled
+                start_timestamp=first_forecast_ts,
+                n_samples=15,
+            )
 
-            preds = scaler.inverse_transform(preds_scaled)  # (forecast_hours, 4) real units
+            # Inverse transform để ra đơn vị thật
+            preds      = scaler.inverse_transform(preds_scaled_mean)  # (steps, 4)
+            preds_std  = scaler.inverse_transform(
+                np.clip(preds_scaled_std, 0, None)
+            )  # std cũng inverse để cùng đơn vị
 
-            # =========================================================
-            # HẬU XỬ LÝ KẾT QUẢ DỰ BÁO
-            # =========================================================
+            # ── Hậu xử lý: clip vật lý theo mùa ──
+            for i, ft in enumerate([first_forecast_ts + pd.Timedelta(hours=h)
+                                     for h in range(forecast_hours)]):
+                preds[i] = _apply_physics_clip(preds[i].copy(), ft.month)
+            preds_std[:, 3] = np.clip(preds_std[:, 3], 0, None)  # std mưa không âm
 
-            # 1. CLIP LƯỢNG MƯA ÂM: Lượng mưa về mặt vật lý không thể âm
-            preds[:, 3] = np.clip(preds[:, 3], 0, None)
-
-            # 2. CLIP ĐỘ ẨM vào dải [0, 100]%
-            preds[:, 1] = np.clip(preds[:, 1], 0, 100)
-
-            # 3. Clip nhiệt độ vào dải hợp lý cho Hà Tĩnh
-            preds[:, 0] = np.clip(preds[:, 0], 5.0, 44.0)
-
-            # 4. Clip áp suất vào dải hợp lý
-            preds[:, 2] = np.clip(preds[:, 2], 960.0, 1050.0)
-
-            # 5. CHUẨN BỊ THỜI GIAN TƯƠNG LAI
+            # ── Thống kê bổ sung ──
             try:
                 last_time = pd.to_datetime(df['time'].iloc[-1])
             except Exception:
                 last_time = pd.Timestamp.now()
 
-            future_times = [last_time + timedelta(hours=i+1) for i in range(forecast_hours)]
+            future_times  = [last_time + timedelta(hours=i+1) for i in range(forecast_hours)]
+            future_hours  = [t.hour for t in future_times]
 
-            # =========================================================
+            # Ngày / Đêm: ngày = 6h-18h, đêm còn lại
+            day_mask   = np.array([6 <= h <= 18 for h in future_hours])
+            night_mask = ~day_mask
+
+            avg_day_temp   = np.mean(preds[day_mask,   0]) if day_mask.any()   else np.nan
+            avg_night_temp = np.mean(preds[night_mask, 0]) if night_mask.any() else np.nan
+
+            # Heat Index (Steadman, đơn giản hóa) — chỉ có nghĩa khi T > 27°C
+            T_arr = preds[:, 0]
+            RH_arr = preds[:, 1]
+            hi_arr = np.where(
+                T_arr >= 27,
+                -8.784695 + 1.61139411*T_arr + 2.338549*RH_arr
+                - 0.14611605*T_arr*RH_arr - 0.012308094*T_arr**2
+                - 0.016424828*RH_arr**2 + 0.002211732*T_arr**2*RH_arr
+                + 0.00072546*T_arr*RH_arr**2 - 0.000003582*T_arr**2*RH_arr**2,
+                T_arr
+            )
+
+            # Xác suất mưa: nếu std lớn hoặc mean > 0 → mưa có khả năng cao
+            rain_prob = np.clip(
+                (preds[:, 3] / (preds_std[:, 3] + 1e-3)).clip(0, 1) * 100, 0, 100
+            )
+            # Đơn giản hơn: tỉ lệ giờ có mưa (mean > 0.1mm)
+            pct_rain_hours = np.mean(preds[:, 3] > 0.1) * 100
+            total_rain     = preds[:, 3].sum()
+
             past_times = pd.to_datetime(df['time'].tolist()) if 'time' in df.columns else \
                 [last_time - timedelta(hours=len(df)-i-1) for i in range(len(df))]
-            # Hiển thị tối đa 96h gần nhất để biểu đồ không quá dày
             display_hours = min(96, len(df))
-            past_times = past_times[-display_hours:]
-            past_temp = df['temperature'].values[-display_hours:]
+            past_times    = past_times[-display_hours:]
+            past_temp     = df['temperature'].values[-display_hours:]
             past_humidity = df['humidity'].values[-display_hours:]
             past_pressure = df['pressure'].values[-display_hours:]
 
             st.divider()
             st.markdown("### 🌟 Tổng quan Dự báo")
 
-            current_temp = past_temp[-1]
+            current_temp  = past_temp[-1]
             max_pred_temp = np.max(preds[:, 0])
             min_pred_temp = np.min(preds[:, 0])
             avg_pred_temp = np.mean(preds[:, 0])
+            avg_hi        = np.mean(hi_arr[T_arr >= 27]) if (T_arr >= 27).any() else avg_pred_temp
 
             col1, col2, col3, col4 = st.columns(4)
-            with col1: st.metric("🌡️ Nhiệt độ Hiện tại", f"{current_temp:.1f} °C")
-            with col2: st.metric("🔥 Cao nhất dự báo", f"{max_pred_temp:.1f} °C", f"{max_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
-            with col3: st.metric("❄️ Thấp nhất dự báo", f"{min_pred_temp:.1f} °C", f"{min_pred_temp - current_temp:+.1f} °C", delta_color="inverse")
-            with col4: st.metric("💧 Độ ẩm Trung bình", f"{np.mean(preds[:, 1]):.0f} %")
+            with col1:
+                st.metric("🌡️ Nhiệt độ Hiện tại", f"{current_temp:.1f} °C")
+            with col2:
+                st.metric("🔥 Cao nhất dự báo",
+                          f"{max_pred_temp:.1f} °C",
+                          f"{max_pred_temp - current_temp:+.1f} °C",
+                          delta_color="inverse")
+            with col3:
+                st.metric("❄️ Thấp nhất dự báo",
+                          f"{min_pred_temp:.1f} °C",
+                          f"{min_pred_temp - current_temp:+.1f} °C",
+                          delta_color="inverse")
+            with col4:
+                st.metric("💧 Độ ẩm Trung bình", f"{np.mean(preds[:, 1]):.0f} %")
 
+            # Hàng 2: thống kê bổ sung
+            col5, col6, col7, col8 = st.columns(4)
+            with col5:
+                st.metric("☀️ Nhiệt độ TB Ngày",
+                          f"{avg_day_temp:.1f} °C" if not np.isnan(avg_day_temp) else "N/A")
+            with col6:
+                st.metric("🌙 Nhiệt độ TB Đêm",
+                          f"{avg_night_temp:.1f} °C" if not np.isnan(avg_night_temp) else "N/A")
+            with col7:
+                st.metric("🌧️ Tổng lượng mưa", f"{total_rain:.1f} mm",
+                          f"{pct_rain_hours:.0f}% giờ có mưa")
+            with col8:
+                hi_val = float(avg_hi)
+                hi_label = ("🟢 Thoải mái" if hi_val < 32
+                            else "🟡 Nóng" if hi_val < 38
+                            else "🔴 Rất nóng/Nguy hiểm")
+                st.metric("🌡️ Heat Index TB", f"{hi_val:.1f} °C", hi_label)
+
+            # Đồng hồ đo nhiệt độ
             fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number", value=avg_pred_temp, domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Nhiệt độ Trung bình Dự báo", 'font': {'size': 20}}, number={'suffix': " °C", 'font': {'size': 40}},
+                mode="gauge+number", value=avg_pred_temp,
+                domain={'x': [0, 1], 'y': [0, 1]},
+                title={'text': "Nhiệt độ Trung bình Dự báo", 'font': {'size': 20}},
+                number={'suffix': " °C", 'font': {'size': 40}},
                 gauge={
-                    'axis': {'range': [10, 45], 'tickwidth': 1, 'tickcolor': "darkblue"}, 'bar': {'color': "rgba(0,0,0,0.3)"},
+                    'axis': {'range': [10, 45], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                    'bar': {'color': "rgba(0,0,0,0.3)"},
                     'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
-                    'steps': [{'range': [10, 20], 'color': '#60A5FA'}, {'range': [20, 28], 'color': '#34D399'},
-                              {'range': [28, 35], 'color': '#fbbf24'}, {'range': [35, 45], 'color': '#F87171'}],
-                    'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': max_pred_temp}
+                    'steps': [
+                        {'range': [10, 20], 'color': '#60A5FA'},
+                        {'range': [20, 28], 'color': '#34D399'},
+                        {'range': [28, 35], 'color': '#fbbf24'},
+                        {'range': [35, 45], 'color': '#F87171'}
+                    ],
+                    'threshold': {'line': {'color': "red", 'width': 4},
+                                  'thickness': 0.75, 'value': max_pred_temp}
                 }
             ))
             fig_gauge.update_layout(height=350, margin=dict(l=10, r=10, t=50, b=10))
@@ -664,71 +785,86 @@ def run_weather_app():
 
             st.divider()
             st.markdown("### 📈 Phân tích Xu hướng Chi tiết")
+
+            # Uncertainty band (±1σ) cho nhiệt độ
+            temp_upper = list(preds[:, 0] + preds_std[:, 0])
+            temp_lower = list(preds[:, 0] - preds_std[:, 0])
+            future_times_str = list(future_times)
+
             fig = go.Figure()
+            # Dải uncertainty (fill giữa upper và lower)
+            fig.add_trace(go.Scatter(
+                x=future_times_str + future_times_str[::-1],
+                y=temp_upper + temp_lower[::-1],
+                fill='toself', fillcolor='rgba(239,68,68,0.15)',
+                line=dict(color='rgba(255,255,255,0)'),
+                name='Khoảng tin cậy ±1σ', showlegend=True
+            ))
             fig.add_trace(go.Scatter(
                 x=past_times, y=past_temp, mode='lines+markers',
                 name='Thực tế', line=dict(color='#2563EB', width=3)
             ))
             fig.add_trace(go.Scatter(
-                x=[past_times[-1]] + list(future_times),
+                x=[past_times[-1]] + future_times_str,
                 y=[past_temp[-1]] + list(preds[:, 0]),
-                mode='lines+markers', name='Dự báo L-GRU',
+                mode='lines+markers', name='Dự báo L-GRU (mean)',
                 line=dict(color='#EF4444', width=3, dash='dash')
             ))
             fig.update_layout(
-                title="Biểu đồ Dự báo Nhiệt độ Hà Tĩnh",
-                xaxis_title="Thời gian (Giờ)", yaxis_title="Nhiệt độ (°C)",
+                title="Biểu đồ Dự báo Nhiệt độ Hà Tĩnh (có dải bất định)",
+                xaxis_title="Thời gian", yaxis_title="Nhiệt độ (°C)",
                 hovermode="x unified", template="plotly_white"
             )
             st.plotly_chart(fig, use_container_width=True)
 
-            # Biểu đồ lượng mưa (đã clip về 0 từ trước)
+            # Biểu đồ lượng mưa với uncertainty
+            rain_upper = np.clip(preds[:, 3] + preds_std[:, 3], 0, None)
             fig_rain = go.Figure()
             fig_rain.add_trace(go.Bar(
                 x=future_times, y=preds[:, 3],
-                name='Lượng mưa dự báo', marker_color='#3B82F6'
+                name='Lượng mưa (mean)', marker_color='#3B82F6',
+                error_y=dict(type='data', array=preds_std[:, 3], visible=True)
             ))
             fig_rain.update_layout(
-                title="Biểu đồ Dự báo Lượng mưa Hà Tĩnh",
-                xaxis_title="Thời gian (Giờ)", yaxis_title="Lượng mưa (mm)",
-                yaxis=dict(rangemode='nonnegative'),  # Trục Y không âm
+                title="Biểu đồ Dự báo Lượng mưa Hà Tĩnh (có sai số)",
+                xaxis_title="Thời gian", yaxis_title="Lượng mưa (mm)",
+                yaxis=dict(rangemode='nonnegative'),
                 template="plotly_white"
             )
             st.plotly_chart(fig_rain, use_container_width=True)
 
-            # Biểu đồ độ ẩm
+            # Độ ẩm và Áp suất
             fig_hum = go.Figure()
             fig_hum.add_trace(go.Scatter(
                 x=past_times, y=past_humidity, mode='lines+markers',
                 name='Thực tế', line=dict(color='#10B981', width=3)
             ))
             fig_hum.add_trace(go.Scatter(
-                x=[past_times[-1]] + list(future_times),
+                x=[past_times[-1]] + future_times_str,
                 y=[past_humidity[-1]] + list(preds[:, 1]),
                 mode='lines+markers', name='Dự báo',
                 line=dict(color='#FBBF24', width=3, dash='dash')
             ))
             fig_hum.update_layout(
-                title="Biểu đồ Dự báo Độ ẩm",
-                xaxis_title="Thời gian (Giờ)", yaxis_title="Độ ẩm (%)",
+                title="Dự báo Độ ẩm",
+                xaxis_title="Thời gian", yaxis_title="Độ ẩm (%)",
                 hovermode="x unified", template="plotly_white"
             )
-            
-            # Biểu đồ áp suất
+
             fig_pres = go.Figure()
             fig_pres.add_trace(go.Scatter(
                 x=past_times, y=past_pressure, mode='lines+markers',
                 name='Thực tế', line=dict(color='#8B5CF6', width=3)
             ))
             fig_pres.add_trace(go.Scatter(
-                x=[past_times[-1]] + list(future_times),
+                x=[past_times[-1]] + future_times_str,
                 y=[past_pressure[-1]] + list(preds[:, 2]),
                 mode='lines+markers', name='Dự báo',
                 line=dict(color='#A78BFA', width=3, dash='dash')
             ))
             fig_pres.update_layout(
-                title="Biểu đồ Dự báo Áp suất",
-                xaxis_title="Thời gian (Giờ)", yaxis_title="Áp suất (hPa)",
+                title="Dự báo Áp suất",
+                xaxis_title="Thời gian", yaxis_title="Áp suất (hPa)",
                 hovermode="x unified", template="plotly_white"
             )
 
@@ -738,13 +874,34 @@ def run_weather_app():
             with col_chart2:
                 st.plotly_chart(fig_pres, use_container_width=True)
 
+            # Heat Index chart
+            fig_hi = go.Figure()
+            fig_hi.add_trace(go.Scatter(
+                x=future_times, y=hi_arr, mode='lines',
+                name='Heat Index', line=dict(color='#F97316', width=2),
+                fill='tozeroy', fillcolor='rgba(249,115,22,0.1)'
+            ))
+            fig_hi.add_hline(y=32, line_dash="dash", line_color="orange",
+                             annotation_text="Cảnh báo nóng (32°C)")
+            fig_hi.add_hline(y=38, line_dash="dash", line_color="red",
+                             annotation_text="Nguy hiểm (38°C)")
+            fig_hi.update_layout(
+                title="Chỉ số Heat Index (Cảm giác nóng thực tế)",
+                xaxis_title="Thời gian", yaxis_title="Heat Index (°C)",
+                template="plotly_white"
+            )
+            st.plotly_chart(fig_hi, use_container_width=True)
+
             with st.expander("📊 Bảng dữ liệu chi tiết từng giờ"):
                 res_df = pd.DataFrame({
-                    "Thời gian": [t.strftime('%H:%M %d/%m') for t in future_times],
-                    "Nhiệt độ (°C)": preds[:, 0].round(1),
-                    "Độ ẩm (%)": preds[:, 1].round(1),
-                    "Áp suất (hPa)": preds[:, 2].round(1),
-                    "Lượng mưa (mm)": preds[:, 3].round(2)
+                    "Thời gian"       : [t.strftime('%H:%M %d/%m') for t in future_times],
+                    "Nhiệt độ (°C)"   : preds[:, 0].round(1),
+                    "±σ Nhiệt độ"     : preds_std[:, 0].round(2),
+                    "Heat Index (°C)" : hi_arr.round(1),
+                    "Độ ẩm (%)"       : preds[:, 1].round(1),
+                    "Áp suất (hPa)"   : preds[:, 2].round(1),
+                    "Lượng mưa (mm)"  : preds[:, 3].round(2),
+                    "±σ Mưa"          : preds_std[:, 3].round(2),
                 })
                 st.dataframe(res_df, use_container_width=True)
 

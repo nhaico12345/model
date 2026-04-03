@@ -1,0 +1,34 @@
+{
+  "input_size": 10,
+  "hidden_size": 256,
+  "num_layers": 3,
+  "output_size": 4,
+  "dropout": 0.25,
+  "seq_len": 96,
+  "pred_len": 1,
+  "features": [
+    "Scaled_temperature",
+    "Scaled_humidity",
+    "Scaled_pressure",
+    "Scaled_precipitation",
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "week_sin",
+    "week_cos"
+  ],
+  "base_features": [
+    "Scaled_temperature",
+    "Scaled_humidity",
+    "Scaled_pressure",
+    "Scaled_precipitation"
+  ],
+  "target_cols": [
+    "Scaled_temperature",
+    "Scaled_humidity",
+    "Scaled_pressure",
+    "Scaled_precipitation"
+  ],
+  "use_time_features": true
+}

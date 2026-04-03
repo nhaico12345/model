@@ -9,10 +9,10 @@ import os
 import warnings
 try:
     from sklearn.exceptions import InconsistentVersionWarning
-    warnings.filterwarnings("Bỏ qua", category=InconsistentVersionWarning)
+    warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
 except ImportError:
     pass
-warnings.filterwarnings("Bỏ qua", message=".*X không có tên các đặc trưng hợp lệ.*")
+warnings.filterwarnings("ignore", message=".*X không có tên các đặc trưng hợp lệ.*")
 from datetime import timedelta
 
 # Cấu hình trang tổng

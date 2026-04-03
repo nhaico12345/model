@@ -641,7 +641,7 @@ def run_weather_app():
                 st.stop()
 
         # ── Bắt đầu dự báo ──
-        with st.spinner("🤖 AI L-GRU đang chạy Monte Carlo Dropout ensemble (15 lần)..."):
+        with st.spinner("🤖 AI L-GRU đang tính toán ước lượng tốt nhất..."):
             weather_features = ['temperature', 'humidity', 'pressure', 'precipitation']
             data_raw = df[weather_features].values.astype(np.float32)
 

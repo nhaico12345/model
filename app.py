@@ -974,9 +974,8 @@ def run_finance_app():
 
                 df = df_yf.reset_index()
 
-                # FIX LỖI 8: Flatten multi-index an toàn hơn để tránh duplicate column
                 if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = [col[0] if col[1] == '' else col[0] for col in df.columns]
+                    df.columns = df.columns.get_level_values(0)
 
                 if 'Date' not in df.columns:
                     for col in ['Datetime', 'index', 'level_0']:

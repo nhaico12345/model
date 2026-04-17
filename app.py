@@ -409,20 +409,10 @@ def run_weather_app():
         st.error("❌ Không thể khởi tạo Scaler cho dữ liệu thời tiết.")
         st.stop()
 
-    forecast_hours = st.sidebar.slider("Dự báo bao nhiêu giờ tiếp theo?", min_value=1, max_value=72, value=24)
+    st.markdown('### 🗓️ 1. Thiết lập Dự báo')
+    st.info('💡 Hệ thống AI L-GRU sẽ tự động đồng bộ kết nối để tải dữ liệu quan trắc thực tế cho đến **thời điểm hiện tại**, sau đó phân tích và đưa ra dự báo tương lai.')
+    forecast_hours = st.slider('Dự báo bao nhiêu giờ tiếp theo (tính từ thời điểm hiện tại)?', min_value=1, max_value=72, value=24)
 
-    st.markdown("### 🗓️ 1. Chọn thời điểm bắt đầu dự báo")
-    st.info("💡Hệ thống sẽ **tự động kết nối vệ tinh và tải dữ liệu thời tiết** 48 giờ trước thời điểm bạn chọn.")
-
-    col_date, col_time = st.columns(2)
-    with col_date:
-        today = pd.Timestamp.now('Asia/Bangkok').date()
-        min_date = today - timedelta(days=365*2)  # Cho phép lùi 2 năm
-        selected_date = st.date_input("Ngày dự báo:", value=today, min_value=min_date, max_value=today)
-    with col_time:
-        if "default_time" not in st.session_state:
-            st.session_state["default_time"] = pd.Timestamp.now('Asia/Bangkok').replace(second=0, microsecond=0).time()
-        selected_time = st.time_input("Giờ dự báo:", value=st.session_state["default_time"])
 
     if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", width="stretch", type="primary", key="btn_weather"):
         with st.spinner("⏳ Đang tải dữ liệu thời tiết thực tế từ trạm khí tượng (Open-Meteo API)..."):
@@ -430,7 +420,10 @@ def run_weather_app():
             import json
             import datetime
 
-            target_dt = datetime.datetime.combine(selected_date, selected_time)
+            now_bkk = pd.Timestamp.now('Asia/Bangkok').replace(minute=0, second=0, microsecond=0)
+            target_dt = now_bkk.to_pydatetime()
+            today = now_bkk.date()
+            selected_date = today
             # Tải đủ dữ liệu = SEQ_LEN (96h) + buffer 24h để bù độ trễ dữ liệu API
             # Tổng = 120h → sau khi lọc df_past sẽ còn ≥ SEQ_LEN hàng
             hours_needed = SEQ_LEN + 24  # đủ dữ liệu + buffer

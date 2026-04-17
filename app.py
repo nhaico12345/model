@@ -474,8 +474,8 @@ def run_weather_app():
                 # Cắt đúng SEQ_LEN giờ trước target_dt
                 # Chuyển đổi toàn bộ cột time sang đối tượng datetime
                 df_all['time'] = pd.to_datetime(df_all['time'])
-                # Lọc bằng đối tượng datetime trực tiếp
-                df_past = df_all[df_all['time'] <= pd.to_datetime(target_dt)]
+                # Lọc bằng đối tượng datetime trực tiếp (bỏ tzinfo để so sánh)
+                df_past = df_all[df_all['time'] <= pd.to_datetime(target_dt).tz_localize(None)]
 
                 if len(df_past) >= SEQ_LEN:
                     df = df_past.tail(SEQ_LEN).reset_index(drop=True)

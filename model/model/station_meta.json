@@ -1,0 +1,26 @@
+{
+  "station_name": "Hà Tĩnh",
+  "latitude": 18.3428,
+  "longitude": 105.9056,
+  "timezone": "Asia/Bangkok",
+  "country": "Vietnam",
+  "data_source": "Open-Meteo Archive API",
+  "data_range": "1990-2026",
+  "temporal_resolution": "hourly",
+  "variables": [
+    "temperature_2m (°C)",
+    "relative_humidity_2m (%)",
+    "surface_pressure (hPa)",
+    "precipitation (mm)",
+    "wind_speed_10m (m/s)",
+    "wind_direction_10m (°)"
+  ],
+  "model_architecture": "L-GRU (Layer-normalized GRU with Cell State)",
+  "activation_functions": {
+    "gates": "sigmoid",
+    "candidate": "Mish",
+    "output_transform": "tanh"
+  },
+  "normalization": "LayerNorm on gate pre-activations",
+  "peephole_connections": true
+}

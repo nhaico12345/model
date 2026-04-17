@@ -1,0 +1,47 @@
+{
+  "input_size": 11,
+  "hidden_size": 256,
+  "num_layers": 3,
+  "output_size": 7,
+  "dropout": 0.15,
+  "seq_len": 168,
+  "pred_len": 1,
+  "batch_size": 256,
+  "epochs": 100,
+  "lr": 0.001,
+  "weight_decay": 1e-05,
+  "patience": 15,
+  "grad_clip": 1.0,
+  "val_ratio": 0.15,
+  "loss_weights": [
+    2.0,
+    1.0,
+    1.5,
+    2.5,
+    1.5,
+    1.0,
+    1.0
+  ],
+  "feature_cols": [
+    "Scaled_temperature",
+    "Scaled_humidity",
+    "Scaled_pressure",
+    "Scaled_precipitation",
+    "Scaled_wind_speed",
+    "wind_dir_sin",
+    "wind_dir_cos",
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos"
+  ],
+  "target_cols": [
+    "Scaled_temperature",
+    "Scaled_humidity",
+    "Scaled_pressure",
+    "Scaled_precipitation",
+    "Scaled_wind_speed",
+    "wind_dir_sin",
+    "wind_dir_cos"
+  ]
+}

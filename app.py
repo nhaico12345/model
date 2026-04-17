@@ -29,67 +29,6 @@ class Mish(nn.Module):
     def forward(self, x):
         return x * torch.tanh(F.softplus(x))
 
-# --- Kiến trúc L-GRU CŨ (dùng cho model tài chính) ---
-class CustomRNNAILayer(nn.Module):
-    def __init__(self, input_size, hidden_size):
-        super().__init__()
-        self.hidden_size = hidden_size
-
-        self.W_r = nn.Linear(input_size + hidden_size, hidden_size)
-        self.W_z = nn.Linear(input_size + hidden_size, hidden_size)
-        self.W_o = nn.Linear(input_size + hidden_size, hidden_size)
-        self.W_c = nn.Linear(input_size + hidden_size, hidden_size)
-
-        self.W_cr = nn.Parameter(torch.Tensor(hidden_size))
-        self.W_cz = nn.Parameter(torch.Tensor(hidden_size))
-        self.W_co = nn.Parameter(torch.Tensor(hidden_size))
-
-        self.ln_r = nn.LayerNorm(hidden_size)
-        self.ln_z = nn.LayerNorm(hidden_size)
-        self.ln_o = nn.LayerNorm(hidden_size)
-
-        self.mish = Mish()
-
-    def forward(self, x_t, states):
-        h_prev, c_prev = states
-        hx = torch.cat([x_t, h_prev], dim=1)
-
-        r_t = torch.sigmoid(self.ln_r(self.W_r(hx) + self.W_cr * c_prev))
-        r_hx = torch.cat([x_t, r_t * h_prev], dim=1)
-        c_tilde = self.mish(self.W_c(r_hx))
-        z_t = torch.sigmoid(self.ln_z(self.W_z(hx) + self.W_cz * c_prev))
-        c_t = z_t * c_prev + (1 - z_t) * c_tilde
-        o_t = torch.sigmoid(self.ln_o(self.W_o(hx) + self.W_co * c_t))
-        h_t = o_t * torch.tanh(c_t)
-
-        return h_t, c_t
-
-class CustomAIModel(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1):
-        super().__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.cells = nn.ModuleList([
-            CustomRNNAILayer(input_size if i == 0 else hidden_size, hidden_size)
-            for i in range(num_layers)
-        ])
-        self.fc = nn.Linear(hidden_size, output_size)
-
-    def forward(self, x):
-        batch_size, seq_len, _ = x.size()
-        states = [(torch.zeros(batch_size, self.hidden_size).to(x.device),
-                   torch.zeros(batch_size, self.hidden_size).to(x.device))
-                  for _ in range(self.num_layers)]
-        out = None
-        for t in range(seq_len):
-            x_t = x[:, t, :]
-            for i, cell in enumerate(self.cells):
-                h_t, c_t = cell(x_t, states[i])
-                states[i] = (h_t, c_t)
-                x_t = h_t
-            out = h_t
-        return self.fc(out)
-
 # ─────────────────────────────────────────────────────────────────────────────
 # KIẾN TRÚC MODEL MỚI — Custom GRU-LSTM Hybrid + TemporalAttention
 # Khớp hoàn toàn với train_model_weather.py (best_weather_model(release).pth)
@@ -349,28 +288,6 @@ def predict_autoregressive_weather(
     return mean_scaled, std_scaled
 
 
-def predict_autoregressive_finance(model, input_seq, steps, device):
-    """Dự báo autoregressive nhiều bước cho tài chính.
-
-    Loại bỏ tính năng làm mượt (EMA) để giữ nguyên mức độ biến động (volatility)
-    đặc trưng của thị trường tài chính.
-    """
-    current_seq = torch.FloatTensor(input_seq).unsqueeze(0).to(device)
-    predictions = []
-
-    with torch.no_grad():
-        for step in range(steps):
-            pred = model(current_seq)
-            pred_np = pred.cpu().numpy()[0]  # shape: (1,)
-
-            predictions.append(pred_np.copy())
-
-            pred_tensor = torch.FloatTensor(pred_np).unsqueeze(0).unsqueeze(0).to(device)
-            current_seq = torch.cat([current_seq[:, 1:, :], pred_tensor], dim=1)
-
-    return np.array(predictions)
-
-
 # -------------------------------------------------------------
 # 2. HÀM XỬ LÝ CACHE MODEL VÀ SCALER
 # -------------------------------------------------------------
@@ -378,7 +295,7 @@ def predict_autoregressive_finance(model, input_seq, steps, device):
 def load_station_meta():
     """Đọc tọa độ và timezone trạm đo từ station_meta.json."""
     import json
-    for p in ["station_meta.json", "model/station_meta.json"]:
+    for p in ["modelweather/station_meta.json"]:
         if os.path.exists(p):
             with open(p, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -392,7 +309,7 @@ def load_station_meta():
 def load_model_config():
     """Đọc hyperparameters từ config.json (ưu tiên hơn hard-code)."""
     import json
-    for p in ["config.json", "model/config.json"]:
+    for p in ["modelweather/config.json"]:
         if os.path.exists(p):
             with open(p, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -412,9 +329,7 @@ def load_weather_model_and_scaler():
 
     # Tìm file model theo thứ tự ưu tiên
     model_candidates = [
-        "best_weather_model(release).pth",
-        "model/best_weather_model.pth",
-        "model/best_weather_model(release).pth",
+        "modelweather/best_weather_model(release).pth",
     ]
     model_path = next((p for p in model_candidates if os.path.exists(p)), None)
     if model_path is None:
@@ -453,9 +368,7 @@ def load_weather_model_and_scaler():
 
     # Tìm scaler theo thứ tự ưu tiên
     scaler_candidates = [
-        "weather_scaler.pkl",
-        "model/weather_scaler.pkl",
-        "weather_scaler.joblib",
+        "modelweather/weather_scaler.pkl",
     ]
     scaler_path = next((p for p in scaler_candidates if os.path.exists(p)), None)
     if scaler_path:
@@ -469,49 +382,6 @@ def load_weather_model_and_scaler():
         scaler.fit(np.vstack([_min, _max]))
 
     return model, device, scaler, seq_len
-
-
-@st.cache_resource
-def load_finance_scaler(ticker, train_end_date="2025-01-01"):
-    """Load và fit MinMaxScaler cho tài chính trên dữ liệu TRƯỚC mốc train.
-    
-    FIX DATA LEAKAGE: Scaler chỉ được fit trên dữ liệu training (trước train_end_date),
-    KHÔNG fit trên dữ liệu từ tương lai (sau thời điểm train), vì sẽ thay đổi không gian
-    normalisation và làm sai lệch kết quả inference.
-    """
-    # CHUYỂN LỆNH IMPORT VÀO ĐÂY ĐỂ TRÁNH LỖI ATEXIT CỦA JOBLIB
-    from sklearn.preprocessing import MinMaxScaler
-    import yfinance as yf
-
-    # Tải dữ liệu ĐẾN mốc cố định — tương đương dữ liệu training của model
-    df_train = yf.download(ticker, start="2010-01-01", end=train_end_date, progress=False)
-    if isinstance(df_train.columns, pd.MultiIndex):
-        df_train.columns = df_train.columns.droplevel(1)
-
-    if df_train.empty or 'Close' not in df_train.columns:
-        # Fallback: nếu không tải được, dùng scaler mặc định với khoảng rộng
-        scaler = MinMaxScaler()
-        # Dùng range tương đối để fit (sẽ được override khi có data)
-        scaler.fit([[0], [1]])
-        return scaler
-
-    scaler = MinMaxScaler()
-    scaler.fit(df_train[['Close']].values)
-    return scaler
-
-
-@st.cache_resource
-def load_finance_model(model_path):
-    if not os.path.exists(model_path):
-        return None, None
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = CustomAIModel(input_size=1, hidden_size=256, output_size=1, num_layers=3).to(device)
-    ckpt = torch.load(model_path, map_location=device, weights_only=False)
-    state_dict = ckpt.get('model_state_dict', ckpt)
-    new_state_dict = {k.replace('_orig_mod.', ''): v for k, v in state_dict.items()}
-    model.load_state_dict(new_state_dict)
-    model.eval()
-    return model, device
 
 
 # -------------------------------------------------------------
@@ -913,218 +783,9 @@ def run_weather_app():
                 st.dataframe(res_df, width="stretch")
 
 
-# -------------------------------------------------------------
-# 4. PHÂN HỆ TÀI CHÍNH
-# -------------------------------------------------------------
-def run_finance_app():
-    st.markdown("<h1 style='color: #1E3A8A;'>📈 L-GRU: Dự báo Tài chính</h1>", unsafe_allow_html=True)
-    st.write("**Áp dụng thuật toán L-GRU cho chuỗi thời gian giá cổ phiếu & tiền điện tử**")
-    st.divider()
-
-    st.sidebar.header("🔧 Cài đặt Model Tài chính")
-    model_choice = st.sidebar.selectbox("Chọn mô hình dự báo:", ["Bitcoin", "SP500", "Tesla"])
-
-    model_files = {
-        "Bitcoin": "modeltaichinh/best_bitcoin_model.pth",
-        "SP500": "modeltaichinh/best_sp500_model.pth",
-        "Tesla": "modeltaichinh/best_tesla_model.pth"
-    }
-
-    # Mapping ticker và mốc train_end tương ứng
-    ticker_map = {
-        "Bitcoin": "BTC-USD",
-        "SP500": "^GSPC",
-        "Tesla": "TSLA"
-    }
-    # Mốc ngày cuối của tập training (tương đương split khi huấn luyện model)
-    train_end_map = {
-        "Bitcoin": "2025-01-01",
-        "SP500": "2025-01-01",
-        "Tesla": "2025-01-01"
-    }
-    # Bitcoin giao dịch 7 ngày/tuần, SP500/Tesla chỉ giao dịch ngày làm việc
-    is_crypto = {"Bitcoin": True, "SP500": False, "Tesla": False}
-
-    forecast_days = st.sidebar.slider("Dự báo bao nhiêu ngày tới?", min_value=1, max_value=30, value=7)
-
-    st.markdown(f"### 🗓️ 1. Chọn ngày kết thúc dữ liệu cho {model_choice}")
-    st.info("💡 Hệ thống sẽ **tự động kết nối và tải chuỗi dữ liệu giao dịch 60 ngày** trước đó từ Internet.")
-
-    today = pd.Timestamp.now('Asia/Bangkok').date()
-    min_date = today - timedelta(days=365*5)  # Lùi 5 năm
-    selected_date = st.date_input("Ngày kết thúc dữ liệu muốn phân tích:", value=today, min_value=min_date, max_value=today)
-
-    if st.button("🚀 TẢI DỮ LIỆU TỰ ĐỘNG & BẮT ĐẦU DỰ BÁO", width="stretch", type="primary", key="btn_finance"):
-        with st.spinner(f"⏳ Đang kết nối thị trường tài chính để tải dữ liệu {model_choice}..."):
-            import yfinance as yf
-
-            ticker = ticker_map.get(model_choice)
-
-            try:
-                # Lấy số ngày đủ nhiều để bù ngày nghỉ lễ, cuối tuần
-                start_date = selected_date - timedelta(days=100)
-                st_str = start_date.strftime('%Y-%m-%d')
-                en_str = (selected_date + timedelta(days=1)).strftime('%Y-%m-%d')
-
-                df_yf = yf.download(ticker, start=st_str, end=en_str, progress=False)
-
-                if df_yf.empty:
-                    st.error(f"❌ Không có dữ liệu cho {model_choice} trong khoảng thời gian này.")
-                    st.stop()
-
-                df = df_yf.reset_index()
-
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = df.columns.get_level_values(0)
-
-                if 'Date' not in df.columns:
-                    for col in ['Datetime', 'index', 'level_0']:
-                        if col in df.columns:
-                            df.rename(columns={col: 'Date'}, inplace=True)
-                            break
-
-                df = df[['Date', 'Close']]
-                # Sử dụng ffill/bfill để giữ tính liên tục của time-series
-                df.ffill(inplace=True)
-                df.bfill(inplace=True)
-
-                # Cắt 60 phiên cuối
-                seq_len = 60
-                if len(df) >= seq_len:
-                    df = df.tail(seq_len).reset_index(drop=True)
-                else:
-                    df = df.reset_index(drop=True)
-
-                st.success(f"✅ Đã tải thành công {len(df)} phiên giao dịch gần nhất!")
-                with st.expander("👁️ Xem trước dữ liệu tự động tải"):
-                    st.dataframe(df.tail(), width="stretch")
-
-            except Exception as e:
-                st.error(f"❌ Lỗi tải dữ liệu tài chính: {e}")
-                st.stop()
-
-        model_path = model_files[model_choice]
-        model_data = load_finance_model(model_path)
-
-        if model_data[0] is None:
-            st.error(f"❌ Không tìm thấy file model AI tại {model_path}")
-            st.stop()
-
-        model, device = model_data
-
-        # FIX LỖI 6: Load scaler đúng — chỉ fit đến mốc train_end, không bao gồm dữ liệu tương lai
-        train_end = train_end_map[model_choice]
-        scaler = load_finance_scaler(ticker, train_end_date=train_end)
-
-        with st.spinner("🤖 AI L-GRU đang phân tích chuỗi dữ liệu..."):
-            seq_len_actual = min(60, len(df))
-            recent_data = df['Close'].values[-seq_len_actual:].reshape(-1, 1).astype(np.float32)
-
-            data_scaled = scaler.transform(recent_data)
-
-            # FIX LỖI 7: Dùng hàm dự báo riêng cho tài chính — không kéo về anchor cố định
-            preds_scaled = predict_autoregressive_finance(model, data_scaled, steps=forecast_days, device=device)
-            preds = scaler.inverse_transform(preds_scaled)
-
-            st.markdown("### 🌟 Tổng quan Dự báo L-GRU")
-
-            # Tính toán và hiển thị Metric Cards
-            current_price = float(df['Close'].iloc[-1])
-            final_predicted_price = float(preds[-1, 0])
-            price_change = final_predicted_price - current_price
-            pct_change = (price_change / current_price) * 100
-
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("💵 Giá hiện tại", f"${current_price:,.2f}")
-            with col2:
-                st.metric(f"🎯 Dự báo (sau {forecast_days} ngày)", f"${final_predicted_price:,.2f}", f"{price_change:+,.2f} ({pct_change:+.2f}%)")
-            with col3:
-                if pct_change > 2:
-                    st.info("🚀 **Tín hiệu AI:** Xu hướng TĂNG RÕ RỆT (Tích cực)")
-                elif pct_change < -2:
-                    st.error("📉 **Tín hiệu AI:** Xu hướng GIẢM (Thận trọng)")
-                else:
-                    st.warning("⚖️ **Tín hiệu AI:** Đi ngang / Biến động nhẹ")
-
-            st.divider()
-            st.markdown("### 📊 Phân tích Biểu đồ Trực quan")
-
-            # Chuẩn bị dữ liệu thời gian tương lai
-            last_date = pd.to_datetime(df['Date'].iloc[-1])
-
-            # FIX LỖI 9: Dùng pd.bdate_range cho cổ phiếu (skip cuối tuần),
-            # dùng timedelta thông thường cho Bitcoin (giao dịch 7 ngày/tuần)
-            if is_crypto[model_choice]:
-                future_dates = [last_date + timedelta(days=i+1) for i in range(forecast_days)]
-            else:
-                future_dates = pd.bdate_range(
-                    start=last_date + timedelta(days=1), periods=forecast_days
-                ).tolist()
-
-            past_dates = pd.to_datetime(df['Date'].iloc[-30:])
-            past_prices = df['Close'].iloc[-30:].values
-
-            fig = go.Figure()
-
-            # Line quá khứ
-            fig.add_trace(go.Scatter(
-                x=past_dates, y=past_prices,
-                mode='lines+markers', name='Dữ liệu Thực tế',
-                line=dict(color='#64748B', width=2)
-            ))
-
-            # Line dự báo với fill bóng mờ
-            fig.add_trace(go.Scatter(
-                x=[past_dates.iloc[-1]] + future_dates,
-                y=[past_prices[-1]] + list(preds[:, 0]),
-                mode='lines+markers', name='Dự báo AI (L-GRU)',
-                line=dict(color='#10B981' if pct_change >= 0 else '#EF4444', width=3),
-                fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.1)' if pct_change >= 0 else 'rgba(239, 68, 68, 0.1)'
-            ))
-
-            # Vạch kẻ dọc ngăn cách Hiện tại và Tương lai
-            fig.add_vline(
-                x=last_date.timestamp() * 1000,
-                line_width=2, line_dash="dash", line_color="gray",
-                annotation_text="← Thực tế | Dự báo →", annotation_position="top"
-            )
-
-            fig.update_layout(
-                title=f"Lộ trình giá {model_choice} trong {forecast_days} ngày tới",
-                xaxis_title="Thời gian (Ngày)",
-                yaxis_title="Giá ($)",
-                hovermode="x unified",
-                template="plotly_white",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-
-            st.plotly_chart(fig, width="stretch")
-
-            # Bảng chi tiết
-            with st.expander("🧮 Xem chi tiết bảng giá dự báo từng ngày"):
-                res_df = pd.DataFrame({
-                    "Ngày": [d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d) for d in future_dates],
-                    "Giá dự báo ($)": preds[:, 0].round(2)
-                })
-                st.dataframe(res_df, width="stretch", hide_index=True)
-
-
-# -------------------------------------------------------------
-# 5. KHỞI CHẠY ỨNG DỤNG
-# -------------------------------------------------------------
 def main():
-    st.sidebar.title("🤖 Trợ lý L-GRU AI")
-    st.sidebar.write("Chọn module phân tích bên dưới:")
-    app_mode = st.sidebar.radio("Phân hệ:", ["🌦️ Dự báo Thời tiết", "📈 Dự báo Tài chính"])
-
-    st.sidebar.divider()
-
-    if app_mode == "🌦️ Dự báo Thời tiết":
-        run_weather_app()
-    elif app_mode == "📈 Dự báo Tài chính":
-        run_finance_app()
-
+    st.sidebar.title('🤖 Trợ lý L-GRU AI')
+    run_weather_app()
 
 if __name__ == '__main__':
     main()
